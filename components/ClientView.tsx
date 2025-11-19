@@ -50,7 +50,7 @@ export const ClientView: React.FC<ClientViewProps> = () => {
   // --- RENDER: BRANCH SELECTION ---
   if (viewState === 'select-branch') {
     return (
-      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8">
         <div className="text-center mb-12">
           <img 
             src={settings.logoUrl} 
@@ -61,26 +61,29 @@ export const ClientView: React.FC<ClientViewProps> = () => {
           <p className="text-xl text-gray-600">Iltimos, filialni tanlang:</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
           {branches.map(branch => (
             <button
               key={branch.id}
               onClick={() => handleBranchSelect(branch)}
-              className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-200 text-left group"
+              className="bg-white p-8 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-[color:var(--brand-color)] text-left group hover:scale-[1.03]"
+              style={{'--brand-color': settings.primaryColor} as React.CSSProperties}
             >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-2xl font-bold text-gray-900 group-hover:text-[color:var(--brand-color)]" style={{'--brand-color': settings.primaryColor} as React.CSSProperties}>
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-2xl font-bold text-gray-900 group-hover:text-[color:var(--brand-color)] transition-colors">
                   {branch.name}
                 </h3>
-                <ChevronRight size={24} className="text-gray-400 group-hover:text-gray-600" />
+                <ChevronRight size={28} className="text-gray-300 group-hover:text-[color:var(--brand-color)] group-hover:translate-x-1 transition-all duration-300" />
               </div>
-              <div className="flex items-center text-gray-600 mb-2 text-lg">
-                <MapPin size={20} className="mr-3" />
-                {branch.address}
-              </div>
-              <div className="flex items-center text-gray-600 text-lg">
-                <Phone size={20} className="mr-3" />
-                {branch.phone}
+              <div className="space-y-3">
+                <div className="flex items-center text-gray-600 text-lg">
+                  <MapPin size={20} className="mr-3 flex-shrink-0" />
+                  <span>{branch.address}</span>
+                </div>
+                <div className="flex items-center text-gray-600 text-lg">
+                  <Phone size={20} className="mr-3 flex-shrink-0" />
+                  <span>{branch.phone}</span>
+                </div>
               </div>
             </button>
           ))}
