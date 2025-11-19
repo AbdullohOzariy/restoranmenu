@@ -3,9 +3,10 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Serve static files from the React app
-// The 'dist' folder is at the project root, so we go up one level ('..')
-app.use(express.static(path.join(__dirname, '..', 'dist')));
+// Serve static files from the React app.
+// 'dist' folder is in the project root, so we use process.cwd()
+const buildPath = path.join(process.cwd(), 'dist');
+app.use(express.static(buildPath));
 
 app.get('/api', (req, res) => {
   res.send('Hello from the backend!');
@@ -14,7 +15,7 @@ app.get('/api', (req, res) => {
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  res.sendFile(path.join(buildPath, 'index.html'));
 });
 
 app.listen(port, () => {
