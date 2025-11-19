@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: restoran-menyu-tizimi
+    env: node
+    plan: free
+    buildCommand: npm install && cd server && npm install && cd .. && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: restoran-menyu-tizimi-db
+          property: connectionString
+databases:
+  - name: restoran-menyu-tizimi-db
+    plan: free
