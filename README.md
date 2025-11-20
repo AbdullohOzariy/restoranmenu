@@ -1,21 +1,84 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🍽️ Restoran Menyu Tizimi
 
-# Run and deploy your AI Studio app
+Digital menyu va filial boshqaruv tizimi. Mijozlar uchun zamonaviy menyu ko'rinishi va admin panel orqali to'liq boshqaruv.
 
-This contains everything you need to run your app locally.
+## ✨ Xususiyatlar
 
-View your app in AI Studio: https://ai.studio/apps/drive/1qLxjJ_LpYJRZA2Q3fqLrrGVfaJgHV2gX
+- 📱 Responsive dizayn (mobil/planshet/desktop)
+- 🏢 Ko'p filial boshqaruvi
+- 📋 Kategoriyalar va taomlar boshqaruvi
+- 💰 Har bir taom uchun ko'p variantlar (narxlar)
+- 🎨 Brending sozlamalari (rang, logo)
+- 🔐 Admin panel (parol himoyalangan)
+- 🗄️ PostgreSQL ma'lumotlar bazasi
 
-## Run Locally
+## 🚀 O'rnatish
 
-**Prerequisites:**  Node.js
+**Talablar:** Node.js 16+, PostgreSQL 12+
 
+### 1. Loyihani yuklab oling
+```bash
+git clone <repository-url>
+cd restoran-menyu-tizimi
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 2. Frontend dependencies o'rnatish
+```bash
+npm install
+```
+
+### 3. Backend dependencies o'rnatish
+```bash
+cd server
+npm install
+cd ..
+```
+
+### 4. Database sozlash
+PostgreSQL ma'lumotlar bazasini yarating:
+```sql
+CREATE DATABASE restaurant_db;
+```
+
+### 5. Environment o'zgaruvchilarini sozlang
+`.env.local` faylini yarating (`.env.example` dan nusxa oling):
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/restaurant_db
+PORT=3000
+```
+
+### 6. Loyihani ishga tushiring
+
+**Development rejimida:**
+```bash
+# Terminal 1 - Backend
+cd server
+npm start
+
+# Terminal 2 - Frontend
+npm run dev
+```
+
+**Production build:**
+```bash
+npm run build
+cd server
+npm start
+```
+
+## 📖 Foydalanish
+
+- **Mijoz ko'rinishi:** `http://localhost:5173` (dev) yoki `http://localhost:3000` (production)
+- **Admin panel:** O'ng pastdagi qulf tugmasini bosing, parol: `admin`
+
+## 🛠️ Texnologiyalar
+
+- **Frontend:** React, TypeScript, Tailwind CSS, Vite
+- **Backend:** Node.js, Express
+- **Database:** PostgreSQL
+- **Icons:** Lucide React
+
+## 📝 Litsenziya
+
+MIT
  

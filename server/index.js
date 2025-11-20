@@ -61,7 +61,7 @@ async function setupDatabase() {
           await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [item.id, branchId]);
         }
       }
-      console.log('Database populated successfully.');
+      console.log('✅ Database muvaffaqiyatli to\'ldirildi.');
     }
 
     await client.query('COMMIT');
@@ -222,7 +222,19 @@ app.use(express.static(buildPath));
 app.get('*', (req, res) => { res.sendFile(path.join(buildPath, 'index.html')); });
 
 // --- Start Server ---
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+const server = app.listen(port, () => {
+  console.log(`✅ Server is running on port ${port}`);
+  console.log(`📍 http://localhost:${port}`);
   setupDatabase();
 });
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${port} allaqachon band. Boshqa portni tanlang yoki portni bo'shating.`);
+    process.exit(1);
+  } else {
+    console.error('❌ Server xatosi:', err);
+    process.exit(1);
+  }
+});
+

@@ -146,10 +146,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     catch (error) { alert("Sozlamalarni saqlashda xatolik."); }
   };
 
-  const openModal = (tab: AdminTab, item: any = null) => {
+  const openModal = (tab: AdminTab, item: Branch | Category | MenuItem | null = null) => {
     setActiveTab(tab);
     setEditItem(item);
-    if (tab === 'items' && item && item.variants && item.variants.length > 0) {
+    if (tab === 'items' && item && 'variants' in item && item.variants && item.variants.length > 0) {
       setItemVariants(item.variants);
     } else if (tab === 'items') {
       setItemVariants([{ name: 'Standard', price: 0 }]);
@@ -188,6 +188,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   }
 
   return (
+    <>
+      {errorMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+          <AlertCircle size={20} />
+          <span>{errorMessage}</span>
+          <button onClick={() => setErrorMessage('')} className="ml-2 hover:bg-red-600 p-1 rounded">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+    <
     <div className="flex h-screen bg-gray-100">
       <aside className="w-64 bg-white shadow-md z-10 flex flex-col">
         <div className="p-6 border-b"><h2 className="text-xl font-bold flex items-center gap-2"><LayoutDashboard size={24} className="text-blue-600" />Admin Panel</h2></div>
