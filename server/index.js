@@ -24,11 +24,11 @@ async function setupDatabase() {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
+        price NUMERIC(10, 2), -- Keep price for migration
         image_url TEXT,
         category_id TEXT REFERENCES categories(id) ON DELETE SET NULL,
         is_active BOOLEAN DEFAULT true,
-        sort_order INTEGER,
-        variants JSONB
+        sort_order INTEGER
       );
       CREATE TABLE IF NOT EXISTS menu_item_branches (
         item_id TEXT REFERENCES menu_items(id) ON DELETE CASCADE,
@@ -38,14 +38,16 @@ async function setupDatabase() {
     `);
 
     // --- Migration from old 'price' column to 'variants' ---
-    const priceColumnCheck = await client.query(`
-      SELECT column_name FROM information_schema.columns 
-      WHERE table_name='menu_items' AND column_name='price'
-    `);
+    const variantsColumnCheck = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='menu_items' AND column_name='variants'`);
+    if (variantsColumnCheck.rows.length === 0) {
+        console.log("'variants' column not found. Adding it...");
+        await client.query('ALTER TABLE menu_items ADD COLUMN variants JSONB');
+    }
 
+    const priceColumnCheck = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='menu_items' AND column_name='price'`);
     if (priceColumnCheck.rows.length > 0) {
       console.log("Old 'price' column found. Starting data migration to 'variants'...");
-      const itemsToMigrate = await client.query('SELECT id, price FROM menu_items WHERE price IS NOT NULL');
+      const itemsToMigrate = await client.query('SELECT id, price FROM menu_items WHERE price IS NOT NULL AND variants IS NULL');
       for (const item of itemsToMigrate.rows) {
         const standardVariant = [{ name: 'Standard', price: parseFloat(item.price) }];
         await client.query('UPDATE menu_items SET variants = $1 WHERE id = $2', [JSON.stringify(standardVariant), item.id]);
@@ -66,8 +68,7 @@ async function setupDatabase() {
         await client.query('INSERT INTO categories (id, name, sort_order) VALUES ($1, $2, $3)', [category.id, category.name, category.sortOrder]);
       }
       for (const item of initialData.items) {
-        const variants = item.variants || [{ name: 'Standard', price: item.price }];
-        await client.query('INSERT INTO menu_items (id, name, description, image_url, category_id, is_active, sort_order, variants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [item.id, item.name, item.description, item.imageUrl, item.categoryId, item.isActive, item.sortOrder, JSON.stringify(variants)]);
+        await client.query('INSERT INTO menu_items (id, name, description, image_url, category_id, is_active, sort_order, variants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [item.id, item.name, item.description, item.imageUrl, item.categoryId, item.isActive, item.sortOrder, JSON.stringify(item.variants)]);
         for (const branchId of item.branchIds) {
           await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [item.id, branchId]);
         }
@@ -231,14 +232,9 @@ app.delete('/api/menu-items/:id', async (req, res) => {
 
 
 // --- Static Files & Catch-all ---
-// This serves the built frontend files
 const buildPath = path.resolve(__dirname, '..', 'dist');
 app.use(express.static(buildPath));
-
-// This is the catch-all handler for SPA routing
-app.get('*', (req, res) => {
-  res.sendFile(path.join(buildPath, 'index.html'));
-});
+app.get('*', (req, res) => { res.sendFile(path.join(buildPath, 'index.html')); });
 
 
 // --- Start Server ---
