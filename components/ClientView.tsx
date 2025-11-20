@@ -51,9 +51,9 @@ export const ClientView: React.FC<ClientViewProps> = () => {
       return 'Narxi belgilanmagan';
     }
     if (item.variants.length === 1) {
-      return `${item.variants[0].price.toLocaleString()} so'm`;
+      return `${(item.variants[0].price || 0).toLocaleString()} so'm`;
     }
-    const minPrice = Math.min(...item.variants.map(v => v.price));
+    const minPrice = Math.min(...item.variants.map(v => v.price || 0));
     return `dan ${minPrice.toLocaleString()} so'm`;
   };
 
