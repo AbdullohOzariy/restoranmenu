@@ -224,7 +224,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     <td className="px-6 py-4"><p className="font-medium">{item.name}</p><span className="text-xs px-2 py-1 bg-gray-100 rounded">{categories.find(c => c.id === item.categoryId)?.name || 'Noma\'lum'}</span></td>
                     <td className="px-6 py-4 text-sm">
                       {item.variants && item.variants.length > 0
-                        ? item.variants.map(v => `${v.name}: ${v.price.toLocaleString()}`).join(', ')
+                        ? item.variants.map(v => `${v.name}: ${(v.price || 0).toLocaleString()}`).join(', ')
                         : "Narxi yo'q"}
                     </td>
                     <td className="px-6 py-4 text-center"><button onClick={() => handleToggleItemStatus(item.id)} className="text-gray-500 hover:text-blue-600">{item.isActive ? <Eye size={20} /> : <EyeOff size={20} />}</button></td>
