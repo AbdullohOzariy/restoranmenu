@@ -225,22 +225,47 @@ const possiblePaths = [
   path.resolve(__dirname, '..', '..', 'dist') // Alternative: two levels up
 ];
 
-let buildPath = possiblePaths[0]; // default
+console.log('🔍 Checking for dist folder in following locations:');
+possiblePaths.forEach(p => {
+  const exists = fs.existsSync(p);
+  console.log(`  ${exists ? '✅' : '❌'} ${p}`);
+});
+
+let buildPath = null;
 for (const p of possiblePaths) {
   if (fs.existsSync(p)) {
     buildPath = p;
-    console.log(`📁 Static files found at: ${buildPath}`);
+    console.log(`📁 Using static files from: ${buildPath}`);
     break;
   }
 }
 
+if (!buildPath) {
+  console.error('❌ CRITICAL: dist folder not found in any expected location!');
+  console.error('📂 Current directory:', __dirname);
+  console.error('📂 Parent directory:', path.resolve(__dirname, '..'));
+  console.error('📂 Files in current dir:', fs.readdirSync(__dirname).join(', '));
+  console.error('📂 Files in parent dir:', fs.readdirSync(path.resolve(__dirname, '..')).join(', '));
+  buildPath = possiblePaths[0]; // fallback to prevent crash
+}
+
 app.use(express.static(buildPath));
+
+// API routes should come before catch-all
+// (already defined above)
+
+// Catch-all route for SPA
 app.get('*', (req, res) => {
   const indexPath = path.join(buildPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    res.status(404).send('Frontend build not found. Please run: npm run build');
+    console.error(`❌ index.html not found at: ${indexPath}`);
+    res.status(404).send(`
+      <h1>Frontend Build Not Found</h1>
+      <p>Expected location: ${indexPath}</p>
+      <p>Please check build logs and ensure 'npm run build' completed successfully.</p>
+    `);
   }
 });
 

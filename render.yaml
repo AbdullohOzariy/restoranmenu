@@ -8,7 +8,13 @@ services:
     buildCommand: |
       npm install
       npm run build
-      cp -r dist server/dist
+      echo "📦 Verifying dist folder..."
+      ls -la dist/
+      echo "📋 Copying dist to server/dist..."
+      mkdir -p server/dist
+      cp -r dist/* server/dist/
+      echo "✅ Dist copied. Verifying..."
+      ls -la server/dist/
       cd server && npm install
     startCommand: cd server && node index.js
     envVars:
