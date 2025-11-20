@@ -8,15 +8,12 @@ services:
     buildCommand: |
       npm install
       npm run build
-      echo "📦 Verifying dist folder..."
-      ls -laR dist/
-      echo "📋 Copying dist to server/dist..."
-      rm -rf server/dist
-      cp -r dist server/dist
-      echo "✅ Dist copied. Verifying server/dist contents..."
+      echo "📦 Verifying build output..."
       ls -laR server/dist/
       echo "🔍 Checking for index.html..."
       find server/dist -name "index.html" -type f
+      if [ ! -f server/dist/index.html ]; then echo "❌ ERROR: index.html not found after build!"; exit 1; fi
+      echo "✅ Build verified successfully!"
       cd server && npm install
     startCommand: cd server && node index.js
     envVars:
