@@ -19,20 +19,24 @@ export const ClientView: React.FC<ClientViewProps> = () => {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const data = await DataService.refreshData();
+      try {
+        const data = await DataService.refreshData();
+        const activeBranches = data.branches.filter(b => b.isActive);
+        const sortedCategories = data.categories.sort((a, b) => a.sortOrder - b.sortOrder);
 
-      const activeBranches = data.branches.filter(b => b.isActive);
-      const sortedCategories = data.categories.sort((a, b) => a.sortOrder - b.sortOrder);
+        setBranches(activeBranches);
+        setCategories(sortedCategories);
+        setItems(data.items.filter(i => i.isActive));
+        setSettings(data.settings);
 
-      setBranches(activeBranches);
-      setCategories(sortedCategories);
-      setItems(data.items.filter(i => i.isActive));
-      setSettings(data.settings);
-
-      if (activeBranches.length === 1) {
-        handleBranchSelect(activeBranches[0], sortedCategories);
+        if (activeBranches.length === 1) {
+          handleBranchSelect(activeBranches[0], sortedCategories);
+        }
+      } catch (error) {
+        console.error("Failed to load data:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     loadData();
@@ -47,13 +51,23 @@ export const ClientView: React.FC<ClientViewProps> = () => {
   };
 
   const getDisplayPrice = (item: MenuItem) => {
-    if (!item.variants || item.variants.length === 0) {
+    if (!item || !Array.isArray(item.variants) || item.variants.length === 0) {
       return 'Narxi belgilanmagan';
     }
-    if (item.variants.length === 1) {
-      return `${(item.variants[0].price || 0).toLocaleString()} so'm`;
+
+    const validPrices = item.variants
+      .map(v => v && typeof v.price === 'number' ? v.price : null)
+      .filter(p => p !== null) as number[];
+
+    if (validPrices.length === 0) {
+      return 'Narxi belgilanmagan';
     }
-    const minPrice = Math.min(...item.variants.map(v => v.price || 0));
+
+    if (validPrices.length === 1) {
+      return `${validPrices[0].toLocaleString()} so'm`;
+    }
+
+    const minPrice = Math.min(...validPrices);
     return `dan ${minPrice.toLocaleString()} so'm`;
   };
 
