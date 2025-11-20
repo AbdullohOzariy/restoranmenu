@@ -15,7 +15,7 @@ async function setupDatabase() {
   try {
     await client.query('BEGIN');
 
-    // --- Schema Creation ---
+    // --- Schema Creation (Define the FINAL schema) ---
     await client.query(`
       CREATE TABLE IF NOT EXISTS settings ( key TEXT PRIMARY KEY, value JSONB );
       CREATE TABLE IF NOT EXISTS branches ( id TEXT PRIMARY KEY, name TEXT NOT NULL, address TEXT, phone TEXT, is_active BOOLEAN DEFAULT true );
@@ -24,11 +24,11 @@ async function setupDatabase() {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
-        price NUMERIC(10, 2), -- Keep price for migration
         image_url TEXT,
         category_id TEXT REFERENCES categories(id) ON DELETE SET NULL,
         is_active BOOLEAN DEFAULT true,
-        sort_order INTEGER
+        sort_order INTEGER,
+        variants JSONB
       );
       CREATE TABLE IF NOT EXISTS menu_item_branches (
         item_id TEXT REFERENCES menu_items(id) ON DELETE CASCADE,
@@ -37,43 +37,52 @@ async function setupDatabase() {
       );
     `);
 
-    // --- Migration from old 'price' column to 'variants' ---
-    const variantsColumnCheck = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='menu_items' AND column_name='variants'`);
-    if (variantsColumnCheck.rows.length === 0) {
-        console.log("'variants' column not found. Adding it...");
-        await client.query('ALTER TABLE menu_items ADD COLUMN variants JSONB');
-    }
-
+    // --- Migration Logic ---
     const priceColumnCheck = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='menu_items' AND column_name='price'`);
+
     if (priceColumnCheck.rows.length > 0) {
-      console.log("Old 'price' column found. Starting data migration to 'variants'...");
-      const itemsToMigrate = await client.query('SELECT id, price FROM menu_items WHERE price IS NOT NULL AND variants IS NULL');
+      console.log("Old 'price' column found. Starting robust data migration...");
+      
+      // 1. Ensure 'variants' column exists before trying to use it.
+      const variantsColumnCheck = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='menu_items' AND column_name='variants'`);
+      if (variantsColumnCheck.rows.length === 0) {
+        console.log("'variants' column not found. Adding it now...");
+        await client.query('ALTER TABLE menu_items ADD COLUMN variants JSONB');
+      }
+
+      // 2. Migrate data from 'price' to 'variants'
+      console.log("Migrating data from 'price' to 'variants' for items that haven't been migrated yet...");
+      const itemsToMigrate = await client.query('SELECT id, price FROM menu_items WHERE price IS NOT NULL AND (variants IS NULL OR variants::text = \'null\')');
       for (const item of itemsToMigrate.rows) {
         const standardVariant = [{ name: 'Standard', price: parseFloat(item.price) }];
         await client.query('UPDATE menu_items SET variants = $1 WHERE id = $2', [JSON.stringify(standardVariant), item.id]);
       }
+
+      // 3. Drop old column
+      console.log("Dropping old 'price' column...");
       await client.query('ALTER TABLE menu_items DROP COLUMN price');
-      console.log("Data migration completed. 'price' column dropped.");
+      
+      console.log("Data migration completed successfully.");
     }
 
-    // --- Initial Data Population ---
+    // --- Initial Data Population (only if DB is truly empty) ---
     const settingsResult = await client.query('SELECT * FROM settings WHERE key = $1', ['app_settings']);
     if (settingsResult.rows.length === 0) {
-      console.log('Database is empty. Populating with initial data...');
-      await client.query('INSERT INTO settings (key, value) VALUES ($1, $2)', ['app_settings', JSON.stringify(initialData.settings)]);
-      for (const branch of initialData.branches) {
-        await client.query('INSERT INTO branches (id, name, address, phone, is_active) VALUES ($1, $2, $3, $4, $5)', [branch.id, branch.name, branch.address, branch.phone, branch.isActive]);
-      }
-      for (const category of initialData.categories) {
-        await client.query('INSERT INTO categories (id, name, sort_order) VALUES ($1, $2, $3)', [category.id, category.name, category.sortOrder]);
-      }
-      for (const item of initialData.items) {
-        await client.query('INSERT INTO menu_items (id, name, description, image_url, category_id, is_active, sort_order, variants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [item.id, item.name, item.description, item.imageUrl, item.categoryId, item.isActive, item.sortOrder, JSON.stringify(item.variants)]);
-        for (const branchId of item.branchIds) {
-          await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [item.id, branchId]);
+        console.log('Database is empty. Populating with initial data...');
+        await client.query('INSERT INTO settings (key, value) VALUES ($1, $2)', ['app_settings', JSON.stringify(initialData.settings)]);
+        for (const branch of initialData.branches) {
+            await client.query('INSERT INTO branches (id, name, address, phone, is_active) VALUES ($1, $2, $3, $4, $5)', [branch.id, branch.name, branch.address, branch.phone, branch.isActive]);
         }
-      }
-      console.log('Database populated successfully.');
+        for (const category of initialData.categories) {
+            await client.query('INSERT INTO categories (id, name, sort_order) VALUES ($1, $2, $3)', [category.id, category.name, category.sortOrder]);
+        }
+        for (const item of initialData.items) {
+            await client.query('INSERT INTO menu_items (id, name, description, image_url, category_id, is_active, sort_order, variants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [item.id, item.name, item.description, item.imageUrl, item.categoryId, item.isActive, item.sortOrder, JSON.stringify(item.variants)]);
+            for (const branchId of item.branchIds) {
+                await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [item.id, branchId]);
+            }
+        }
+        console.log('Database populated successfully.');
     }
 
     await client.query('COMMIT');
@@ -87,7 +96,7 @@ async function setupDatabase() {
 }
 
 
-// --- API Endpoints ---
+// --- API Endpoints (No changes below this line) ---
 app.get('/api/all-data', async (req, res) => {
   try {
     const settingsRes = await db.query('SELECT value FROM settings WHERE key = $1', ['app_settings']);
@@ -122,7 +131,6 @@ app.get('/api/all-data', async (req, res) => {
   }
 });
 
-// --- Settings, Categories, Branches (omitted for brevity, no changes) ---
 app.put('/api/settings', async (req, res) => {
     const newSettings = req.body;
     try {
@@ -172,8 +180,6 @@ app.delete('/api/branches/:id', async (req, res) => {
         res.status(200).json({ message: 'Branch deleted' });
     } catch (err) { res.status(500).json({ error: 'Failed to delete branch' }); }
 });
-
-// --- Menu Items ---
 app.post('/api/menu-items', async (req, res) => {
     const { id, name, description, imageUrl, categoryId, branchIds, sortOrder, variants } = req.body;
     const client = await db.getClient();
@@ -192,7 +198,6 @@ app.post('/api/menu-items', async (req, res) => {
         client.release();
     }
 });
-
 app.put('/api/menu-items/:id', async (req, res) => {
     const { id } = req.params;
     const { name, description, imageUrl, categoryId, branchIds, variants } = req.body;
@@ -213,7 +218,6 @@ app.put('/api/menu-items/:id', async (req, res) => {
         client.release();
     }
 });
-
 app.put('/api/menu-items/:id/status', async (req, res) => {
     const { id } = req.params; const { isActive } = req.body;
     try {
@@ -221,7 +225,6 @@ app.put('/api/menu-items/:id/status', async (req, res) => {
         res.status(200).json({ message: 'Menu item status updated' });
     } catch (err) { res.status(500).json({ error: 'Failed to update status' }); }
 });
-
 app.delete('/api/menu-items/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -230,14 +233,10 @@ app.delete('/api/menu-items/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Failed to delete menu item' }); }
 });
 
-
-// --- Static Files & Catch-all ---
 const buildPath = path.resolve(__dirname, '..', 'dist');
 app.use(express.static(buildPath));
 app.get('*', (req, res) => { res.sendFile(path.join(buildPath, 'index.html')); });
 
-
-// --- Start Server ---
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
   setupDatabase();
