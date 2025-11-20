@@ -19,7 +19,7 @@ export interface MenuItem {
   price: number;
   imageUrl: string;
   categoryId: string;
-  branchIds: string[]; // Item can belong to multiple branches or specific ones
+  branchIds: string[];
   isActive: boolean;
   sortOrder: number;
 }
@@ -28,7 +28,6 @@ export interface AppSettings {
   brandName: string;
   logoUrl: string;
   primaryColor: string;
-  adminPassword?: string; // In real app, this would be handled securely on backend
+  headingColor: string;
+  bodyTextColor: string;
 }
-
-export type ViewMode = 'client-branch-select' | 'client-menu' | 'admin-login' | 'admin-dashboard';

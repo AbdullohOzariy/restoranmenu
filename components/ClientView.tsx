@@ -51,8 +51,8 @@ export const ClientView: React.FC<ClientViewProps> = () => {
             alt={settings.brandName} 
             className="h-24 w-auto mx-auto mb-6 object-contain"
           />
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Xush kelibsiz!</h1>
-          <p className="text-xl text-gray-600">Iltimos, filialni tanlang:</p>
+          <h1 className="text-4xl font-bold mb-2" style={{ color: settings.headingColor }}>Xush kelibsiz!</h1>
+          <p className="text-xl" style={{ color: settings.bodyTextColor }}>Iltimos, filialni tanlang:</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
           {branches.map(branch => (
@@ -63,17 +63,17 @@ export const ClientView: React.FC<ClientViewProps> = () => {
               style={{'--brand-color': settings.primaryColor} as React.CSSProperties}
             >
               <div className="flex justify-between items-start mb-4">
-                <h3 className="text-2xl font-bold text-gray-900 group-hover:text-[color:var(--brand-color)] transition-colors">
+                <h3 className="text-2xl font-bold group-hover:text-[color:var(--brand-color)] transition-colors" style={{ color: settings.headingColor }}>
                   {branch.name}
                 </h3>
                 <ChevronRight size={28} className="text-gray-300 group-hover:text-[color:var(--brand-color)] group-hover:translate-x-1 transition-all duration-300" />
               </div>
               <div className="space-y-3">
-                <div className="flex items-center text-gray-600 text-lg">
+                <div className="flex items-center text-lg" style={{ color: settings.bodyTextColor }}>
                   <MapPin size={20} className="mr-3 flex-shrink-0" />
                   <span>{branch.address}</span>
                 </div>
-                <div className="flex items-center text-gray-600 text-lg">
+                <div className="flex items-center text-lg" style={{ color: settings.bodyTextColor }}>
                   <Phone size={20} className="mr-3 flex-shrink-0" />
                   <span>{branch.phone}</span>
                 </div>
@@ -94,14 +94,15 @@ export const ClientView: React.FC<ClientViewProps> = () => {
           <img src={settings.logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
           <div className="h-8 w-px bg-gray-200"></div>
           <div>
-             <h2 className="text-xl font-bold text-gray-800">{selectedBranch?.name}</h2>
-             <p className="text-sm text-gray-500">{selectedBranch?.address}</p>
+             <h2 className="text-xl font-bold" style={{ color: settings.headingColor }}>{selectedBranch?.name}</h2>
+             <p className="text-sm" style={{ color: settings.bodyTextColor }}>{selectedBranch?.address}</p>
           </div>
         </div>
         {branches.length > 1 && (
             <button 
                 onClick={() => setViewState('select-branch')} 
-                className="text-gray-500 hover:text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-100"
+                className="font-medium px-4 py-2 rounded-lg hover:bg-gray-100"
+                style={{ color: settings.bodyTextColor }}
             >
                 Filialni o'zgartirish
             </button>
@@ -120,10 +121,13 @@ export const ClientView: React.FC<ClientViewProps> = () => {
                   onClick={() => setActiveCategory(category.id)}
                   className={`px-5 py-2.5 rounded-full text-base font-medium whitespace-nowrap transition-all duration-200 ${
                     isActive 
-                      ? 'bg-[color:var(--brand-color)] text-white shadow-sm' 
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'text-white shadow-sm' 
+                      : 'hover:bg-gray-100'
                   }`}
-                  style={{'--brand-color': settings.primaryColor} as React.CSSProperties}
+                  style={{
+                    backgroundColor: isActive ? settings.primaryColor : 'transparent',
+                    color: isActive ? '#FFFFFF' : settings.bodyTextColor
+                  }}
                 >
                   {category.name}
                 </button>
@@ -135,13 +139,13 @@ export const ClientView: React.FC<ClientViewProps> = () => {
         {/* Main Menu Grid */}
         <main className="flex-1 overflow-y-auto p-8">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">
+            <h2 className="text-3xl font-bold" style={{ color: settings.headingColor }}>
                {categories.find(c => c.id === activeCategory)?.name}
             </h2>
           </div>
           
           {filteredItems.length === 0 ? (
-            <div className="text-center py-20 text-gray-400 text-xl">
+            <div className="text-center py-20 text-xl" style={{ color: settings.bodyTextColor }}>
                 Ushbu kategoriyada hozircha taomlar yo'q.
             </div>
           ) : (
@@ -157,13 +161,13 @@ export const ClientView: React.FC<ClientViewProps> = () => {
                     />
                   </div>
                   <div className="p-5 flex flex-col">
-                    <h3 className="text-xl font-bold text-gray-800 truncate mb-2">{item.name}</h3>
-                    <p className="text-gray-500 text-sm line-clamp-2 flex-grow mb-4" style={{ minHeight: '40px' }}>
+                    <h3 className="text-xl font-bold truncate mb-2" style={{ color: settings.headingColor }}>{item.name}</h3>
+                    <p className="text-sm line-clamp-2 flex-grow mb-4" style={{ minHeight: '40px', color: settings.bodyTextColor }}>
                       {item.description}
                     </p>
                     <div className="mt-auto">
                       <span className="text-2xl font-bold" style={{ color: settings.primaryColor }}>
-                        {item.price.toLocaleString()} <span className="text-sm font-medium text-gray-400">so'm</span>
+                        {item.price.toLocaleString()} <span className="text-sm font-medium" style={{ color: settings.bodyTextColor }}>so'm</span>
                       </span>
                     </div>
                   </div>

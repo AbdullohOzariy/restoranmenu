@@ -159,6 +159,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       ...settings,
       brandName: formData.get('brandName') as string,
       primaryColor: formData.get('primaryColor') as string,
+      headingColor: formData.get('headingColor') as string,
+      bodyTextColor: formData.get('bodyTextColor') as string,
       logoUrl: formData.get('logoUrl') as string,
     };
 
@@ -364,6 +366,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       <span className="text-gray-600 text-sm">Brending uchun ishlatiladi.</span>
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sarlavha Rangi</label>
+                    <div className="flex gap-4 items-center">
+                      <input type="color" name="headingColor" defaultValue={settings.headingColor} className="h-10 w-20" />
+                      <span className="text-gray-600 text-sm">Taom nomlari, sarlavhalar uchun.</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Matn Rangi</label>
+                    <div className="flex gap-4 items-center">
+                      <input type="color" name="bodyTextColor" defaultValue={settings.bodyTextColor} className="h-10 w-20" />
+                      <span className="text-gray-600 text-sm">Taom tavsifi va boshqa matnlar uchun.</span>
+                    </div>
+                  </div>
                   <div className="pt-4">
                     <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Saqlash</button>
                   </div>
@@ -409,7 +425,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
-                  <input name="imageUrl" defaultValue={editItem?.imageUrl} placeholder="Rasm URL" className="w-full p-2 border rounded" required />
+                  <div>
+                    <input name="imageUrl" defaultValue={editItem?.imageUrl} placeholder="Rasm URL" className="w-full p-2 border rounded" required />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tavsiya etilgan rasm nisbati: <strong>16:9</strong> (masalan, 1280x720px).
+                    </p>
+                  </div>
                   
                   <div className="mt-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Mavjud filiallar:</label>
