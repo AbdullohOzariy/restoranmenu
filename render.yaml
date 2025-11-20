@@ -8,6 +8,7 @@ services:
     buildCommand: |
       npm install
       npm run build
+      cp -r dist server/dist
       cd server && npm install
     startCommand: cd server && node index.js
     envVars:

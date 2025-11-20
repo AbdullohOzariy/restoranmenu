@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db');
 const initialData = require('./initialData');
 
@@ -217,9 +218,31 @@ app.delete('/api/menu-items/:id', async (req, res) => {
 });
 
 // --- Static Files & Catch-all ---
-const buildPath = path.resolve(__dirname, '..', 'dist');
+// Try multiple possible locations for dist folder (local vs Render)
+const possiblePaths = [
+  path.resolve(__dirname, 'dist'),           // Render: dist in server folder
+  path.resolve(__dirname, '..', 'dist'),     // Local: dist one level up
+  path.resolve(__dirname, '..', '..', 'dist') // Alternative: two levels up
+];
+
+let buildPath = possiblePaths[0]; // default
+for (const p of possiblePaths) {
+  if (fs.existsSync(p)) {
+    buildPath = p;
+    console.log(`📁 Static files found at: ${buildPath}`);
+    break;
+  }
+}
+
 app.use(express.static(buildPath));
-app.get('*', (req, res) => { res.sendFile(path.join(buildPath, 'index.html')); });
+app.get('*', (req, res) => {
+  const indexPath = path.join(buildPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Frontend build not found. Please run: npm run build');
+  }
+});
 
 // --- Start Server ---
 const server = app.listen(port, () => {
