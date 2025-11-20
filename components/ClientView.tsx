@@ -13,28 +13,51 @@ export const ClientView: React.FC<ClientViewProps> = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
-  const [settings, setSettings] = useState<AppSettings>(DataService.getSettings());
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchedBranches = DataService.getBranches().filter(b => b.isActive);
-    setBranches(fetchedBranches);
-    setSettings(DataService.getSettings());
-    const sortedCategories = DataService.getCategories().sort((a, b) => a.sortOrder - b.sortOrder);
-    setCategories(sortedCategories);
-    setItems(DataService.getItems().filter(i => i.isActive));
+    const loadData = async () => {
+      setIsLoading(true);
+      const [fetchedBranches, fetchedCategories, fetchedItems, fetchedSettings] = await Promise.all([
+        DataService.getBranches(),
+        DataService.getCategories(),
+        DataService.getItems(),
+        DataService.getSettings(),
+      ]);
 
-    if (fetchedBranches.length === 1) {
-      handleBranchSelect(fetchedBranches[0]);
-    }
+      const activeBranches = fetchedBranches.filter(b => b.isActive);
+      const sortedCategories = fetchedCategories.sort((a, b) => a.sortOrder - b.sortOrder);
+
+      setBranches(activeBranches);
+      setCategories(sortedCategories);
+      setItems(fetchedItems.filter(i => i.isActive));
+      setSettings(fetchedSettings);
+
+      if (activeBranches.length === 1) {
+        handleBranchSelect(activeBranches[0], sortedCategories);
+      }
+      setIsLoading(false);
+    };
+
+    loadData();
   }, []);
 
-  const handleBranchSelect = (branch: Branch) => {
+  const handleBranchSelect = (branch: Branch, categoryList: Category[]) => {
     setSelectedBranch(branch);
     setViewState('menu');
-    if (categories.length > 0) {
-        setActiveCategory(categories[0].id);
+    if (categoryList.length > 0) {
+        setActiveCategory(categoryList[0].id);
     }
   };
+
+  if (isLoading || !settings) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl">Yuklanmoqda...</div>
+      </div>
+    );
+  }
 
   const filteredItems = items.filter(item => 
     item.branchIds.includes(selectedBranch?.id || '') && 
@@ -58,7 +81,7 @@ export const ClientView: React.FC<ClientViewProps> = () => {
           {branches.map(branch => (
             <button
               key={branch.id}
-              onClick={() => handleBranchSelect(branch)}
+              onClick={() => handleBranchSelect(branch, categories)}
               className="bg-white p-8 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-[color:var(--brand-color)] text-left group hover:scale-[1.03]"
               style={{'--brand-color': settings.primaryColor} as React.CSSProperties}
             >

@@ -27,7 +27,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
-  const [settings, setSettings] = useState<AppSettings>(DataService.getSettings());
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Form States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,142 +38,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     refreshData();
   }, []);
 
-  const refreshData = () => {
-    setBranches(DataService.getBranches());
-    setCategories(DataService.getCategories());
-    setItems(DataService.getItems());
-    setSettings(DataService.getSettings());
+  const refreshData = async () => {
+    setIsLoading(true);
+    const [fetchedBranches, fetchedCategories, fetchedItems, fetchedSettings] = await Promise.all([
+      DataService.getBranches(),
+      DataService.getCategories(),
+      DataService.getItems(),
+      DataService.getSettings(),
+    ]);
+    setBranches(fetchedBranches);
+    setCategories(fetchedCategories);
+    setItems(fetchedItems);
+    setSettings(fetchedSettings);
+    setIsLoading(false);
   };
 
   const handleSaveBranch = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-    
-    const newBranch: Branch = {
-      id: editItem ? editItem.id : Date.now().toString(),
-      name: formData.get('name') as string,
-      address: formData.get('address') as string,
-      phone: formData.get('phone') as string,
-      isActive: true,
-    };
-
-    const updated = editItem 
-      ? branches.map(b => b.id === newBranch.id ? newBranch : b)
-      : [...branches, newBranch];
-    
-    DataService.saveBranches(updated);
-    setBranches(updated);
-    setIsModalOpen(false);
-    setEditItem(null);
+    // ... (Save logic to be implemented with API)
+    alert("Saqlash hozircha ishlamaydi.");
   };
 
   const handleDeleteBranch = (id: string) => {
-    if (window.confirm("Haqiqatan ham bu filialni o'chirmoqchimisiz?")) {
-      const updated = branches.filter(b => b.id !== id);
-      DataService.saveBranches(updated);
-      setBranches(updated);
-    }
+    // ... (Delete logic to be implemented with API)
+    alert("O'chirish hozircha ishlamaydi.");
   };
 
   const handleSaveCategory = (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-
-    const newCategory: Category = {
-      id: editItem ? editItem.id : Date.now().toString(),
-      name: formData.get('name') as string,
-      sortOrder: editItem ? editItem.sortOrder : categories.length + 1,
-    };
-
-    const updated = editItem
-      ? categories.map(c => c.id === newCategory.id ? newCategory : c)
-      : [...categories, newCategory];
-
-    DataService.saveCategories(updated);
-    setCategories(updated);
-    setIsModalOpen(false);
-    setEditItem(null);
+    // ... (Save logic to be implemented with API)
+    alert("Saqlash hozircha ishlamaydi.");
   };
 
   const handleDeleteCategory = (id: string) => {
-    if (window.confirm("Kategoriyani o'chirish unga tegishli taomlarni ham o'chirishi mumkin. Davom etasizmi?")) {
-       const updated = categories.filter(c => c.id !== id);
-       DataService.saveCategories(updated);
-       setCategories(updated);
-    }
+    // ... (Delete logic to be implemented with API)
+    alert("O'chirish hozircha ishlamaydi.");
   };
 
   const handleSaveItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-    
-    const branchIds = branches.map(b => {
-       const checked = (form.elements.namedItem(`branch_${b.id}`) as HTMLInputElement)?.checked;
-       return checked ? b.id : null;
-    }).filter(Boolean) as string[];
-
-    const newItem: MenuItem = {
-      id: editItem ? editItem.id : Date.now().toString(),
-      name: formData.get('name') as string,
-      description: formData.get('description') as string,
-      price: Number(formData.get('price')),
-      imageUrl: formData.get('imageUrl') as string,
-      categoryId: formData.get('categoryId') as string,
-      branchIds: branchIds,
-      isActive: editItem ? editItem.isActive : true,
-      sortOrder: editItem ? editItem.sortOrder : items.length + 1,
-    };
-
-    const updated = editItem
-      ? items.map(i => i.id === newItem.id ? newItem : i)
-      : [...items, newItem];
-
-    DataService.saveItems(updated);
-    setItems(updated);
-    setIsModalOpen(false);
-    setEditItem(null);
+    // ... (Save logic to be implemented with API)
+    alert("Saqlash hozircha ishlamaydi.");
   };
 
   const handleToggleItemStatus = (id: string) => {
-    const updated = items.map(i => i.id === id ? { ...i, isActive: !i.isActive } : i);
-    DataService.saveItems(updated);
-    setItems(updated);
+    // ... (Toggle logic to be implemented with API)
+    alert("Status o'zgartirish hozircha ishlamaydi.");
   };
 
   const handleDeleteItem = (id: string) => {
-    if (window.confirm("Taomni butunlay o'chirmoqchimisiz?")) {
-      const updated = items.filter(i => i.id !== id);
-      DataService.saveItems(updated);
-      setItems(updated);
-    }
+    // ... (Delete logic to be implemented with API)
+    alert("O'chirish hozircha ishlamaydi.");
   };
 
   const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-    
-    const newSettings: AppSettings = {
-      ...settings,
-      brandName: formData.get('brandName') as string,
-      primaryColor: formData.get('primaryColor') as string,
-      headingColor: formData.get('headingColor') as string,
-      bodyTextColor: formData.get('bodyTextColor') as string,
-      logoUrl: formData.get('logoUrl') as string,
-    };
-
-    DataService.saveSettings(newSettings);
-    setSettings(newSettings);
-    alert("Sozlamalar saqlandi!");
+    // ... (Save logic to be implemented with API)
+    alert("Saqlash hozircha ishlamaydi.");
   };
 
   const openModal = (item: any = null) => {
     setEditItem(item);
     setIsModalOpen(true);
   };
+
+  if (isLoading || !settings) {
+    return (
+      <div className="flex h-screen bg-gray-100 items-center justify-center">
+        <div className="text-xl">Admin Panel Yuklanmoqda...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">

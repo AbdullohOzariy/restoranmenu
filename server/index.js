@@ -3,8 +3,15 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Serve static files from the React app.
-// 'dist' folder is in the project root, so we use process.cwd()
+// Mock data for now, will be replaced by database later
+const initialData = require('./initialData');
+
+// API endpoint to get all data at once
+app.get('/api/all-data', (req, res) => {
+  res.json(initialData);
+});
+
+// Serve static files from the React app
 const buildPath = path.join(process.cwd(), 'dist');
 app.use(express.static(buildPath));
 
