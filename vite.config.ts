@@ -1,13 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+
+// PWA plugin is temporarily disabled for debugging build issues.
+// import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-    })
+    // VitePWA({
+    //   registerType: 'autoUpdate',
+    // })
   ],
   server: {
     proxy: {

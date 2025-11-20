@@ -231,9 +231,14 @@ app.delete('/api/menu-items/:id', async (req, res) => {
 
 
 // --- Static Files & Catch-all ---
-const buildPath = path.join(process.cwd(), 'dist');
+// This serves the built frontend files
+const buildPath = path.resolve(__dirname, '..', 'dist');
 app.use(express.static(buildPath));
-app.get('*', (req, res) => { res.sendFile(path.join(buildPath, 'index.html')); });
+
+// This is the catch-all handler for SPA routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(buildPath, 'index.html'));
+});
 
 
 // --- Start Server ---

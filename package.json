@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "postinstall": "cd server && npm install",
-    "build": "npm run postinstall && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "start": "node server/index.js"
   },
