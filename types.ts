@@ -12,16 +12,21 @@ export interface Category {
   sortOrder: number;
 }
 
+export interface MenuItemVariant {
+  name: string;
+  price: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
   description: string;
-  price: number;
   imageUrl: string;
   categoryId: string;
   branchIds: string[];
   isActive: boolean;
   sortOrder: number;
+  variants: MenuItemVariant[];
 }
 
 export interface AppSettings {
@@ -30,5 +35,5 @@ export interface AppSettings {
   primaryColor: string;
   headingColor: string;
   bodyTextColor: string;
-  adminPassword?: string; // Optional for security, might not always be sent to client
+  adminPassword?: string;
 }

@@ -46,6 +46,17 @@ export const ClientView: React.FC<ClientViewProps> = () => {
     }
   };
 
+  const getDisplayPrice = (item: MenuItem) => {
+    if (!item.variants || item.variants.length === 0) {
+      return 'Narxi belgilanmagan';
+    }
+    if (item.variants.length === 1) {
+      return `${item.variants[0].price.toLocaleString()} so'm`;
+    }
+    const minPrice = Math.min(...item.variants.map(v => v.price));
+    return `dan ${minPrice.toLocaleString()} so'm`;
+  };
+
   if (isLoading || !settings) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -106,7 +117,6 @@ export const ClientView: React.FC<ClientViewProps> = () => {
   // --- RENDER: MENU DISPLAY ---
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      {/* Header */}
       <header className="flex-none bg-white shadow-sm z-20 border-b border-gray-100 h-20 flex items-center px-8 justify-between">
         <div className="flex items-center gap-6">
           <img src={settings.logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
@@ -128,7 +138,6 @@ export const ClientView: React.FC<ClientViewProps> = () => {
       </header>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Horizontal Categories */}
         <aside className="flex-none bg-white border-b border-gray-200">
           <nav className="flex items-center space-x-2 p-4 overflow-x-auto no-scrollbar">
             {categories.map(category => {
@@ -138,14 +147,9 @@ export const ClientView: React.FC<ClientViewProps> = () => {
                   key={category.id}
                   onClick={() => setActiveCategory(category.id)}
                   className={`px-5 py-2.5 rounded-full text-base font-medium whitespace-nowrap transition-all duration-200 ${
-                    isActive 
-                      ? 'text-white shadow-sm' 
-                      : 'hover:bg-gray-100'
+                    isActive ? 'text-white shadow-sm' : 'hover:bg-gray-100'
                   }`}
-                  style={{
-                    backgroundColor: isActive ? settings.primaryColor : 'transparent',
-                    color: isActive ? '#FFFFFF' : settings.bodyTextColor
-                  }}
+                  style={{ backgroundColor: isActive ? settings.primaryColor : 'transparent', color: isActive ? '#FFFFFF' : settings.bodyTextColor }}
                 >
                   {category.name}
                 </button>
@@ -154,7 +158,6 @@ export const ClientView: React.FC<ClientViewProps> = () => {
           </nav>
         </aside>
 
-        {/* Main Menu Grid */}
         <main className="flex-1 overflow-y-auto p-8">
           <div className="mb-8">
             <h2 className="text-3xl font-bold" style={{ color: settings.headingColor }}>
@@ -185,7 +188,7 @@ export const ClientView: React.FC<ClientViewProps> = () => {
                     </p>
                     <div className="mt-auto">
                       <span className="text-2xl font-bold" style={{ color: settings.primaryColor }}>
-                        {item.price.toLocaleString()} <span className="text-sm font-medium" style={{ color: settings.bodyTextColor }}>so'm</span>
+                        {getDisplayPrice(item)}
                       </span>
                     </div>
                   </div>
