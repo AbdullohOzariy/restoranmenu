@@ -1,28 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { ViewMode, AppSettings } from './types';
+import { AppSettings } from './types';
 import { DataService } from './services/dataService';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ClientView } from './components/ClientView';
 import { Lock } from 'lucide-react';
 
+type ViewMode = 'loading' | 'client' | 'admin-login' | 'admin-dashboard';
+
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<ViewMode>('client-branch-select');
-  const [settings, setSettings] = useState<AppSettings>(DataService.getSettings());
+  const [currentView, setCurrentView] = useState<ViewMode>('loading');
+  const [settings, setSettings] = useState<AppSettings | null>(null);
   
   // Simple Auth State for Demo
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
   useEffect(() => {
-     // Ensure settings are loaded on mount
-     setSettings(DataService.getSettings());
+    const loadInitialData = async () => {
+      // We only need settings for the login logic
+      const appSettings = await DataService.refreshData().then(data => data.settings);
+      setSettings(appSettings);
+      setCurrentView('client'); 
+    };
+    loadInitialData();
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, use a secure auth service
-    const storedSettings = DataService.getSettings();
-    if (passwordInput === (storedSettings.adminPassword || 'admin')) {
+    if (!settings) return;
+
+    if (passwordInput === (settings.adminPassword || 'admin')) {
       setCurrentView('admin-dashboard');
       setLoginError('');
       setPasswordInput('');
@@ -32,14 +39,14 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    setCurrentView('client-branch-select');
+    setCurrentView('client');
   };
 
-  // Navigation Helper (Hidden on Client View usually, but visible here to toggle for demo purposes)
+  // Navigation Helper
   const ToggleButton = () => (
     <div className="fixed bottom-4 right-4 z-50 opacity-30 hover:opacity-100 transition-opacity">
       <button 
-        onClick={() => setCurrentView(prev => prev.startsWith('admin') ? 'client-branch-select' : 'admin-login')}
+        onClick={() => setCurrentView(prev => prev.startsWith('admin') ? 'client' : 'admin-login')}
         className="bg-gray-800 text-white p-2 rounded-full shadow-lg"
         title="Toggle Admin/Client Mode"
       >
@@ -47,6 +54,10 @@ const App: React.FC = () => {
       </button>
     </div>
   );
+
+  if (currentView === 'loading' || !settings) {
+    return <div className="min-h-screen flex items-center justify-center">Yuklanmoqda...</div>;
+  }
 
   if (currentView === 'admin-dashboard') {
     return (
@@ -83,7 +94,7 @@ const App: React.FC = () => {
             <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
               Kirish
             </button>
-            <button type="button" onClick={() => setCurrentView('client-branch-select')} className="w-full text-gray-500 text-sm hover:underline">
+            <button type="button" onClick={() => setCurrentView('client')} className="w-full text-gray-500 text-sm hover:underline">
               Mijoz rejimiga qaytish
             </button>
           </form>
@@ -92,7 +103,7 @@ const App: React.FC = () => {
     );
   }
 
-  // Default: Client View (Wrapper handles internal states like branch select vs menu)
+  // Default: Client View
   return (
     <>
       <ClientView />
