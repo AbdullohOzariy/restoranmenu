@@ -7,14 +7,16 @@ const initialData = require('./initialData');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Helper to wrap async route handlers and catch errors
+const asyncHandler = fn => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
 app.use(express.json());
 
 async function setupDatabase() {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
-
-    // Step 1: Create tables with the final, correct schema.
     await client.query(`
       CREATE TABLE IF NOT EXISTS settings ( key TEXT PRIMARY KEY, value JSONB );
       CREATE TABLE IF NOT EXISTS branches ( id TEXT PRIMARY KEY, name TEXT NOT NULL, address TEXT, phone TEXT, is_active BOOLEAN DEFAULT true );
@@ -30,8 +32,6 @@ async function setupDatabase() {
         PRIMARY KEY (item_id, branch_id)
       );
     `);
-
-    // Step 2: Robust migration logic. Only runs if the old 'price' column exists.
     const priceColumnCheck = await client.query(`SELECT 1 FROM information_schema.columns WHERE table_name='menu_items' AND column_name='price'`);
     if (priceColumnCheck.rows.length > 0) {
       console.log("Old 'price' column found. Starting robust data migration...");
@@ -44,8 +44,6 @@ async function setupDatabase() {
       await client.query(`ALTER TABLE menu_items DROP COLUMN price`);
       console.log("Data migration completed successfully. 'price' column dropped.");
     }
-
-    // Step 3: Populate with initial data only if the database is completely empty.
     const settingsResult = await client.query('SELECT 1 FROM settings');
     if (settingsResult.rows.length === 0) {
       console.log('Database is empty. Populating with initial data...');
@@ -64,7 +62,6 @@ async function setupDatabase() {
       }
       console.log('✅ Database muvaffaqiyatli to\'ldirildi.');
     }
-
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -75,198 +72,156 @@ async function setupDatabase() {
   }
 }
 
-// API to get all data with guaranteed data shape
-app.get('/api/all-data', async (req, res) => {
+// --- API Endpoints ---
+app.get('/api/all-data', asyncHandler(async (req, res) => {
+  const settingsRes = await db.query('SELECT value FROM settings WHERE key = $1', ['app_settings']);
+  const branchesRes = await db.query('SELECT * FROM branches ORDER BY name');
+  const categoriesRes = await db.query('SELECT * FROM categories ORDER BY sort_order');
+  const itemsRes = await db.query('SELECT * FROM menu_items ORDER BY sort_order');
+  const itemBranchesRes = await db.query('SELECT * FROM menu_item_branches');
+
+  const itemsWithBranches = itemsRes.rows.map(item => {
+    let cleanVariants = [];
+    if (Array.isArray(item.variants)) {
+      cleanVariants = item.variants.map(v => ({
+        name: (v && v.name) ? String(v.name) : 'Nomsiz',
+        price: (v && typeof v.price === 'number') ? v.price : 0,
+      })).filter(Boolean);
+    }
+    return {
+      id: item.id, name: item.name, description: item.description,
+      variants: cleanVariants, imageUrl: item.image_url, categoryId: item.category_id,
+      sortOrder: item.sort_order, isActive: item.is_active,
+      branchIds: itemBranchesRes.rows.filter(ib => ib.item_id === item.id).map(ib => ib.branch_id),
+    };
+  });
+
+  res.json({
+    settings: settingsRes.rows[0] ? settingsRes.rows[0].value : {},
+    branches: branchesRes.rows.map(b => ({ id: b.id, name: b.name, address: b.address, phone: b.phone, isActive: b.is_active })),
+    categories: categoriesRes.rows.map(c => ({ id: c.id, name: c.name, sortOrder: c.sort_order })),
+    items: itemsWithBranches,
+  });
+}));
+
+app.put('/api/settings', asyncHandler(async (req, res) => {
+  const newSettings = req.body;
+  await db.query('UPDATE settings SET value = $1 WHERE key = $2', [JSON.stringify(newSettings), 'app_settings']);
+  res.status(200).json({ message: 'Settings updated successfully' });
+}));
+
+app.post('/api/categories', asyncHandler(async (req, res) => {
+  const { id, name, sortOrder } = req.body;
+  await db.query('INSERT INTO categories (id, name, sort_order) VALUES ($1, $2, $3)', [id, name, sortOrder]);
+  res.status(201).json({ id, name, sortOrder });
+}));
+
+app.put('/api/categories/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+  await db.query('UPDATE categories SET name = $1 WHERE id = $2', [name, id]);
+  res.status(200).json({ message: 'Category updated' });
+}));
+
+app.delete('/api/categories/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await db.query('DELETE FROM categories WHERE id = $1', [id]);
+  res.status(200).json({ message: 'Category deleted' });
+}));
+
+app.post('/api/branches', asyncHandler(async (req, res) => {
+  const { id, name, address, phone } = req.body;
+  await db.query('INSERT INTO branches (id, name, address, phone, is_active) VALUES ($1, $2, $3, $4, $5)', [id, name, address, phone, true]);
+  res.status(201).json({ id, name, address, phone });
+}));
+
+app.put('/api/branches/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { name, address, phone } = req.body;
+  await db.query('UPDATE branches SET name = $1, address = $2, phone = $3 WHERE id = $4', [name, address, phone, id]);
+  res.status(200).json({ message: 'Branch updated' });
+}));
+
+app.delete('/api/branches/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await db.query('DELETE FROM branches WHERE id = $1', [id]);
+  res.status(200).json({ message: 'Branch deleted' });
+}));
+
+app.post('/api/menu-items', asyncHandler(async (req, res) => {
+  const { id, name, description, imageUrl, categoryId, branchIds, sortOrder, variants } = req.body;
+  const client = await db.getClient();
   try {
-    const settingsRes = await db.query('SELECT value FROM settings WHERE key = $1', ['app_settings']);
-    const branchesRes = await db.query('SELECT * FROM branches ORDER BY name');
-    const categoriesRes = await db.query('SELECT * FROM categories ORDER BY sort_order');
-    const itemsRes = await db.query('SELECT * FROM menu_items ORDER BY sort_order');
-    const itemBranchesRes = await db.query('SELECT * FROM menu_item_branches');
-
-    const itemsWithBranches = itemsRes.rows.map(item => {
-      let cleanVariants = [];
-      if (Array.isArray(item.variants)) {
-        cleanVariants = item.variants.map(v => ({
-          name: (v && v.name) ? String(v.name) : 'Nomsiz',
-          price: (v && typeof v.price === 'number') ? v.price : 0,
-        })).filter(Boolean);
-      }
-
-      return {
-        id: item.id, name: item.name, description: item.description,
-        variants: cleanVariants, imageUrl: item.image_url, categoryId: item.category_id,
-        sortOrder: item.sort_order, isActive: item.is_active,
-        branchIds: itemBranchesRes.rows.filter(ib => ib.item_id === item.id).map(ib => ib.branch_id),
-      };
-    });
-
-    res.json({
-      settings: settingsRes.rows[0] ? settingsRes.rows[0].value : {},
-      branches: branchesRes.rows.map(b => ({ id: b.id, name: b.name, address: b.address, phone: b.phone, isActive: b.is_active })),
-      categories: categoriesRes.rows.map(c => ({ id: c.id, name: c.name, sortOrder: c.sort_order })),
-      items: itemsWithBranches,
-    });
+    await client.query('BEGIN');
+    await client.query('INSERT INTO menu_items (id, name, description, image_url, category_id, is_active, sort_order, variants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [id, name, description, imageUrl, categoryId, true, sortOrder, JSON.stringify(variants)]);
+    for (const branchId of branchIds) {
+      await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [id, branchId]);
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ message: 'Menu item created' });
   } catch (err) {
-    console.error('Error fetching all data:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    await client.query('ROLLBACK');
+    throw err; // Re-throw to be caught by the outer error handler
+  } finally {
+    client.release();
   }
-});
+}));
 
-// All other API endpoints (PUT, POST, DELETE) remain the same...
-// ... (omitted for brevity)
-app.put('/api/settings', async (req, res) => {
-    const newSettings = req.body;
-    try {
-        await db.query('UPDATE settings SET value = $1 WHERE key = $2', [JSON.stringify(newSettings), 'app_settings']);
-        res.status(200).json({ message: 'Settings updated successfully' });
-    } catch (err) { res.status(500).json({ error: 'Failed to update settings' }); }
-});
-app.post('/api/categories', async (req, res) => {
-    const { id, name, sortOrder } = req.body;
-    try {
-        await db.query('INSERT INTO categories (id, name, sort_order) VALUES ($1, $2, $3)', [id, name, sortOrder]);
-        res.status(201).json({ id, name, sortOrder });
-    } catch (err) { res.status(500).json({ error: 'Failed to create category' }); }
-});
-app.put('/api/categories/:id', async (req, res) => {
-    const { id } = req.params; const { name } = req.body;
-    try {
-        await db.query('UPDATE categories SET name = $1 WHERE id = $2', [name, id]);
-        res.status(200).json({ message: 'Category updated' });
-    } catch (err) { res.status(500).json({ error: 'Failed to update category' }); }
-});
-app.delete('/api/categories/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        await db.query('DELETE FROM categories WHERE id = $1', [id]);
-        res.status(200).json({ message: 'Category deleted' });
-    } catch (err) { res.status(500).json({ error: 'Failed to delete category' }); }
-});
-app.post('/api/branches', async (req, res) => {
-    const { id, name, address, phone } = req.body;
-    try {
-        await db.query('INSERT INTO branches (id, name, address, phone, is_active) VALUES ($1, $2, $3, $4, $5)', [id, name, address, phone, true]);
-        res.status(201).json({ id, name, address, phone });
-    } catch (err) { res.status(500).json({ error: 'Failed to create branch' }); }
-});
-app.put('/api/branches/:id', async (req, res) => {
-    const { id } = req.params; const { name, address, phone } = req.body;
-    try {
-        await db.query('UPDATE branches SET name = $1, address = $2, phone = $3 WHERE id = $4', [name, address, phone, id]);
-        res.status(200).json({ message: 'Branch updated' });
-    } catch (err) { res.status(500).json({ error: 'Failed to update branch' }); }
-});
-app.delete('/api/branches/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        await db.query('DELETE FROM branches WHERE id = $1', [id]);
-        res.status(200).json({ message: 'Branch deleted' });
-    } catch (err) { res.status(500).json({ error: 'Failed to delete branch' }); }
-});
-app.post('/api/menu-items', async (req, res) => {
-    const { id, name, description, imageUrl, categoryId, branchIds, sortOrder, variants } = req.body;
-    const client = await db.getClient();
-    try {
-        await client.query('BEGIN');
-        await client.query('INSERT INTO menu_items (id, name, description, image_url, category_id, is_active, sort_order, variants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [id, name, description, imageUrl, categoryId, true, sortOrder, JSON.stringify(variants)]);
-        for (const branchId of branchIds) {
-            await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [id, branchId]);
-        }
-        await client.query('COMMIT');
-        res.status(201).json({ message: 'Menu item created' });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: 'Failed to create menu item' });
-    } finally {
-        client.release();
+app.put('/api/menu-items/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { name, description, imageUrl, categoryId, branchIds, variants } = req.body;
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE menu_items SET name = $1, description = $2, image_url = $3, category_id = $4, variants = $5 WHERE id = $6', [name, description, imageUrl, categoryId, JSON.stringify(variants), id]);
+    await client.query('DELETE FROM menu_item_branches WHERE item_id = $1', [id]);
+    for (const branchId of branchIds) {
+      await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [id, branchId]);
     }
-});
-app.put('/api/menu-items/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, description, imageUrl, categoryId, branchIds, variants } = req.body;
-    const client = await db.getClient();
-    try {
-        await client.query('BEGIN');
-        await client.query('UPDATE menu_items SET name = $1, description = $2, image_url = $3, category_id = $4, variants = $5 WHERE id = $6', [name, description, imageUrl, categoryId, JSON.stringify(variants), id]);
-        await client.query('DELETE FROM menu_item_branches WHERE item_id = $1', [id]);
-        for (const branchId of branchIds) {
-            await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [id, branchId]);
-        }
-        await client.query('COMMIT');
-        res.status(200).json({ message: 'Menu item updated' });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: 'Failed to update menu item' });
-    } finally {
-        client.release();
-    }
-});
-app.put('/api/menu-items/:id/status', async (req, res) => {
-    const { id } = req.params; const { isActive } = req.body;
-    try {
-        await db.query('UPDATE menu_items SET is_active = $1 WHERE id = $2', [isActive, id]);
-        res.status(200).json({ message: 'Menu item status updated' });
-    } catch (err) { res.status(500).json({ error: 'Failed to update status' }); }
-});
-app.delete('/api/menu-items/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        await db.query('DELETE FROM menu_items WHERE id = $1', [id]);
-        res.status(200).json({ message: 'Menu item deleted' });
-    } catch (err) { res.status(500).json({ error: 'Failed to delete menu item' }); }
-});
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Menu item updated' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err; // Re-throw to be caught by the outer error handler
+  } finally {
+    client.release();
+  }
+}));
+
+app.put('/api/menu-items/:id/status', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { isActive } = req.body;
+  await db.query('UPDATE menu_items SET is_active = $1 WHERE id = $2', [isActive, id]);
+  res.status(200).json({ message: 'Menu item status updated' });
+}));
+
+app.delete('/api/menu-items/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await db.query('DELETE FROM menu_items WHERE id = $1', [id]);
+  res.status(200).json({ message: 'Menu item deleted' });
+}));
 
 // --- Static Files & Catch-all ---
-// Try multiple possible locations for dist folder (local vs Render)
-const possiblePaths = [
-  path.resolve(__dirname, 'dist'),           // Render: dist in server folder
-  path.resolve(__dirname, '..', 'dist'),     // Local: dist one level up
-  path.resolve(__dirname, '..', '..', 'dist') // Alternative: two levels up
-];
-
-console.log('🔍 Checking for dist folder in following locations:');
-possiblePaths.forEach(p => {
-  const exists = fs.existsSync(p);
-  console.log(`  ${exists ? '✅' : '❌'} ${p}`);
-});
-
-let buildPath = null;
-for (const p of possiblePaths) {
-  if (fs.existsSync(p)) {
-    buildPath = p;
-    console.log(`📁 Using static files from: ${buildPath}`);
-    break;
-  }
-}
-
-if (!buildPath) {
-  console.error('❌ CRITICAL: dist folder not found in any expected location!');
-  console.error('📂 Current directory:', __dirname);
-  console.error('📂 Parent directory:', path.resolve(__dirname, '..'));
-  console.error('📂 Files in current dir:', fs.readdirSync(__dirname).join(', '));
-  console.error('📂 Files in parent dir:', fs.readdirSync(path.resolve(__dirname, '..')).join(', '));
-  buildPath = possiblePaths[0]; // fallback to prevent crash
-}
-
+const buildPath = path.resolve(__dirname, 'dist');
+console.log(`📁 Serving static files from: ${buildPath}`);
 app.use(express.static(buildPath));
-
-// API routes should come before catch-all
-// (already defined above)
-
-// Catch-all route for SPA
-app.get('*', (req, res) => {
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next(); // Skip API calls
   const indexPath = path.join(buildPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    console.error(`❌ index.html not found at: ${indexPath}`);
-    res.status(404).send(`
-      <h1>Frontend Build Not Found</h1>
-      <p>Expected location: ${indexPath}</p>
-      <p>Please check build logs and ensure 'npm run build' completed successfully.</p>
-    `);
+    res.status(404).send(`<h1>Frontend Build Not Found</h1><p>Path: ${indexPath}</p>`);
   }
+});
+
+// --- Centralized Error Handler ---
+app.use((err, req, res, next) => {
+  console.error(`API Error on ${req.method} ${req.path}:`, err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
 // --- Start Server ---
@@ -278,11 +233,10 @@ const server = app.listen(port, () => {
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${port} allaqachon band. Boshqa portni tanlang yoki portni bo'shating.`);
+    console.error(`❌ Port ${port} is already in use.`);
     process.exit(1);
   } else {
-    console.error('❌ Server xatosi:', err);
+    console.error('❌ Server startup error:', err);
     process.exit(1);
   }
 });
-
