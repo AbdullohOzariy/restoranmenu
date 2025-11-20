@@ -170,12 +170,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const formatVariants = (variants: MenuItemVariant[] | undefined) => {
+  const formatVariantsForAdmin = (variants: MenuItemVariant[] | undefined) => {
     if (!variants || !Array.isArray(variants) || variants.length === 0) {
       return "Narxi yo'q";
     }
     return variants
-      .map(v => `${v.name}: ${(v.price || 0).toLocaleString()}`)
+      .map(v => {
+        const price = (v && typeof v.price === 'number') ? v.price.toLocaleString() : 'N/A';
+        const name = (v && v.name) ? v.name : 'Nomsiz';
+        return `${name}: ${price}`;
+      })
       .join('; ');
   };
 
@@ -236,7 +240,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {items.map(item => (<tr key={item.id} className={!item.isActive ? 'bg-gray-50 opacity-60' : ''}>
                     <td className="px-6 py-4"><img src={item.imageUrl} alt={item.name} className="w-12 h-12 rounded-lg object-cover bg-gray-200" /></td>
                     <td className="px-6 py-4"><p className="font-medium">{item.name}</p><span className="text-xs px-2 py-1 bg-gray-100 rounded">{categories.find(c => c.id === item.categoryId)?.name || 'Noma\'lum'}</span></td>
-                    <td className="px-6 py-4 text-sm">{formatVariants(item.variants)}</td>
+                    <td className="px-6 py-4 text-sm">{formatVariantsForAdmin(item.variants)}</td>
                     <td className="px-6 py-4 text-center"><button onClick={() => handleToggleItemStatus(item.id)} className="text-gray-500 hover:text-blue-600">{item.isActive ? <Eye size={20} /> : <EyeOff size={20} />}</button></td>
                     <td className="px-6 py-4 text-right space-x-2"><button onClick={() => openModal('items', item)} className="hover:underline text-blue-600">Tahrirlash</button><button onClick={() => handleDeleteItem(item.id)} className="hover:underline text-red-600">O'chirish</button></td>
                   </tr>))}
