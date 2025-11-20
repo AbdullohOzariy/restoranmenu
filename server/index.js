@@ -43,14 +43,12 @@ async function setupDatabase() {
     if (priceColumnCheck.rows.length > 0) {
       console.log("Old 'price' column found. Starting robust data migration...");
       
-      // 1. Ensure 'variants' column exists before trying to use it.
       const variantsColumnCheck = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='menu_items' AND column_name='variants'`);
       if (variantsColumnCheck.rows.length === 0) {
         console.log("'variants' column not found. Adding it now...");
         await client.query('ALTER TABLE menu_items ADD COLUMN variants JSONB');
       }
 
-      // 2. Migrate data from 'price' to 'variants'
       console.log("Migrating data from 'price' to 'variants' for items that haven't been migrated yet...");
       const itemsToMigrate = await client.query('SELECT id, price FROM menu_items WHERE price IS NOT NULL AND (variants IS NULL OR variants::text = \'null\')');
       for (const item of itemsToMigrate.rows) {
@@ -58,7 +56,6 @@ async function setupDatabase() {
         await client.query('UPDATE menu_items SET variants = $1 WHERE id = $2', [JSON.stringify(standardVariant), item.id]);
       }
 
-      // 3. Drop old column
       console.log("Dropping old 'price' column...");
       await client.query('ALTER TABLE menu_items DROP COLUMN price');
       
@@ -96,7 +93,7 @@ async function setupDatabase() {
 }
 
 
-// --- API Endpoints (No changes below this line) ---
+// --- API Endpoints ---
 app.get('/api/all-data', async (req, res) => {
   try {
     const settingsRes = await db.query('SELECT value FROM settings WHERE key = $1', ['app_settings']);
@@ -105,19 +102,30 @@ app.get('/api/all-data', async (req, res) => {
     const itemsRes = await db.query('SELECT * FROM menu_items ORDER BY sort_order');
     const itemBranchesRes = await db.query('SELECT * FROM menu_item_branches');
 
-    const itemsWithBranches = itemsRes.rows.map(item => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      variants: item.variants || [],
-      imageUrl: item.image_url,
-      categoryId: item.category_id,
-      sortOrder: item.sort_order,
-      isActive: item.is_active,
-      branchIds: itemBranchesRes.rows
-        .filter(ib => ib.item_id === item.id)
-        .map(ib => ib.branch_id),
-    }));
+    const itemsWithBranches = itemsRes.rows.map(item => {
+      // **ULTRA-SAFE DATA SANITIZATION**
+      let cleanVariants = [];
+      if (Array.isArray(item.variants)) {
+        cleanVariants = item.variants.map(v => ({
+          name: (v && v.name) ? String(v.name) : 'Nomsiz',
+          price: (v && typeof v.price === 'number') ? v.price : 0,
+        })).filter(v => v !== null);
+      }
+
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        variants: cleanVariants, // Use the sanitized variants
+        imageUrl: item.image_url,
+        categoryId: item.category_id,
+        sortOrder: item.sort_order,
+        isActive: item.is_active,
+        branchIds: itemBranchesRes.rows
+          .filter(ib => ib.item_id === item.id)
+          .map(ib => ib.branch_id),
+      };
+    });
 
     res.json({
       settings: settingsRes.rows[0] ? settingsRes.rows[0].value : {},
@@ -131,6 +139,7 @@ app.get('/api/all-data', async (req, res) => {
   }
 });
 
+// --- Settings, Categories, Branches (omitted for brevity, no changes) ---
 app.put('/api/settings', async (req, res) => {
     const newSettings = req.body;
     try {
