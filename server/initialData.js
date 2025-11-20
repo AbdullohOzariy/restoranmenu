@@ -15,7 +15,10 @@ const initialItems = [
     id: '101',
     name: 'Pepperoni Pitsa',
     description: 'Mol go\'shti, motsarella pishlog\'i, maxsus sous, pepperoni.',
-    price: 85000,
+    variants: [
+      { name: '30sm', price: 85000 },
+      { name: '40sm', price: 105000 },
+    ],
     imageUrl: 'https://picsum.photos/800/450?random=1',
     categoryId: '1',
     branchIds: ['1', '2'],
@@ -26,7 +29,9 @@ const initialItems = [
     id: '102',
     name: 'Margarita Pitsa',
     description: 'Pomidor, motsarella pishlog\'i, oregano.',
-    price: 70000,
+    variants: [
+      { name: 'Standard', price: 70000 },
+    ],
     imageUrl: 'https://picsum.photos/800/450?random=2',
     categoryId: '1',
     branchIds: ['1', '2'],
@@ -35,9 +40,12 @@ const initialItems = [
   },
   {
     id: '201',
-    name: 'Tovuqli Lavash',
-    description: 'Tovuq go\'shti, bodring, pomidor, chips, sous.',
-    price: 35000,
+    name: 'Lavash',
+    description: 'Tovuq yoki mol go\'shti, bodring, pomidor, chips, sous.',
+    variants: [
+      { name: 'Mol go\'shtli', price: 35000 },
+      { name: 'Tovuq go\'shtli', price: 32000 },
+    ],
     imageUrl: 'https://picsum.photos/800/450?random=3',
     categoryId: '2',
     branchIds: ['1', '2'],
@@ -46,9 +54,12 @@ const initialItems = [
   },
   {
     id: '301',
-    name: 'Coca Cola 0.5L',
+    name: 'Coca Cola',
     description: 'Yaxna ichimlik.',
-    price: 12000,
+    variants: [
+      { name: '0.5L', price: 12000 },
+      { name: '1.5L', price: 18000 },
+    ],
     imageUrl: 'https://picsum.photos/800/450?random=4',
     categoryId: '3',
     branchIds: ['1', '2'],
