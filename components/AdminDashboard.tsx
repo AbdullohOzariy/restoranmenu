@@ -23,7 +23,7 @@ interface AdminDashboardProps {
 type AdminTab = 'branches' | 'categories' | 'items' | 'settings';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState<AdminTab>('branches');
+  const [activeTab, setActiveTab] = useState<AdminTab>('items');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -40,58 +40,158 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const refreshData = async () => {
     setIsLoading(true);
-    const [fetchedBranches, fetchedCategories, fetchedItems, fetchedSettings] = await Promise.all([
-      DataService.getBranches(),
-      DataService.getCategories(),
-      DataService.getItems(),
-      DataService.getSettings(),
-    ]);
-    setBranches(fetchedBranches);
-    setCategories(fetchedCategories);
-    setItems(fetchedItems);
-    setSettings(fetchedSettings);
+    const data = await DataService.refreshData();
+    setBranches(data.branches);
+    setCategories(data.categories);
+    setItems(data.items);
+    setSettings(data.settings);
     setIsLoading(false);
   };
 
-  const handleSaveBranch = (e: React.FormEvent) => {
+  const handleSaveBranch = async (e: React.FormEvent) => {
     e.preventDefault();
-    // ... (Save logic to be implemented with API)
-    alert("Saqlash hozircha ishlamaydi.");
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const branchData = {
+      name: formData.get('name') as string,
+      address: formData.get('address') as string,
+      phone: formData.get('phone') as string,
+    };
+
+    try {
+      if (editItem) {
+        await DataService.updateBranch(editItem.id, branchData);
+      } else {
+        await DataService.addBranch(branchData);
+      }
+      await refreshData();
+    } catch (error) {
+      alert("Filialni saqlashda xatolik yuz berdi.");
+    } finally {
+      setIsModalOpen(false);
+      setEditItem(null);
+    }
   };
 
-  const handleDeleteBranch = (id: string) => {
-    // ... (Delete logic to be implemented with API)
-    alert("O'chirish hozircha ishlamaydi.");
+  const handleDeleteBranch = async (id: string) => {
+    if (window.confirm("Haqiqatan ham bu filialni o'chirmoqchimisiz?")) {
+      try {
+        await DataService.deleteBranch(id);
+        await refreshData();
+      } catch (error) {
+        alert("Filialni o'chirishda xatolik yuz berdi.");
+      }
+    }
   };
 
-  const handleSaveCategory = (e: React.FormEvent) => {
-    // ... (Save logic to be implemented with API)
-    alert("Saqlash hozircha ishlamaydi.");
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const name = formData.get('name') as string;
+
+    try {
+      if (editItem) {
+        await DataService.updateCategory(editItem.id, { name });
+      } else {
+        await DataService.addCategory({ name });
+      }
+      await refreshData();
+    } catch (error) {
+      alert("Kategoriyani saqlashda xatolik yuz berdi.");
+    } finally {
+      setIsModalOpen(false);
+      setEditItem(null);
+    }
   };
 
-  const handleDeleteCategory = (id: string) => {
-    // ... (Delete logic to be implemented with API)
-    alert("O'chirish hozircha ishlamaydi.");
+  const handleDeleteCategory = async (id: string) => {
+    if (window.confirm("Haqiqatan ham bu kategoriyani o'chirmoqchimisiz?")) {
+      try {
+        await DataService.deleteCategory(id);
+        await refreshData();
+      } catch (error) {
+        alert("Kategoriyani o'chirishda xatolik yuz berdi.");
+      }
+    }
   };
 
-  const handleSaveItem = (e: React.FormEvent) => {
-    // ... (Save logic to be implemented with API)
-    alert("Saqlash hozircha ishlamaydi.");
+  const handleSaveItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    
+    const branchIds = branches.map(b => (form.elements.namedItem(`branch_${b.id}`) as HTMLInputElement)?.checked ? b.id : null).filter(Boolean) as string[];
+
+    const itemData = {
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+      price: Number(formData.get('price')),
+      imageUrl: formData.get('imageUrl') as string,
+      categoryId: formData.get('categoryId') as string,
+      branchIds: branchIds,
+    };
+
+    try {
+      if (editItem) {
+        await DataService.updateMenuItem(editItem.id, itemData);
+      } else {
+        await DataService.addMenuItem(itemData);
+      }
+      await refreshData();
+    } catch (error) {
+      alert("Taomni saqlashda xatolik yuz berdi.");
+    } finally {
+      setIsModalOpen(false);
+      setEditItem(null);
+    }
   };
 
-  const handleToggleItemStatus = (id: string) => {
-    // ... (Toggle logic to be implemented with API)
-    alert("Status o'zgartirish hozircha ishlamaydi.");
+  const handleToggleItemStatus = async (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    try {
+      await DataService.updateMenuItemStatus(id, !item.isActive);
+      await refreshData();
+    } catch (error) {
+      alert("Statusni o'zgartirishda xatolik yuz berdi.");
+    }
   };
 
-  const handleDeleteItem = (id: string) => {
-    // ... (Delete logic to be implemented with API)
-    alert("O'chirish hozircha ishlamaydi.");
+  const handleDeleteItem = async (id: string) => {
+    if (window.confirm("Haqiqatan ham bu taomni o'chirmoqchimisiz?")) {
+      try {
+        await DataService.deleteMenuItem(id);
+        await refreshData();
+      } catch (error) {
+        alert("Taomni o'chirishda xatolik yuz berdi.");
+      }
+    }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
-    // ... (Save logic to be implemented with API)
-    alert("Saqlash hozircha ishlamaydi.");
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settings) return;
+
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    
+    const newSettings: AppSettings = {
+      ...settings,
+      brandName: formData.get('brandName') as string,
+      primaryColor: formData.get('primaryColor') as string,
+      headingColor: formData.get('headingColor') as string,
+      bodyTextColor: formData.get('bodyTextColor') as string,
+      logoUrl: formData.get('logoUrl') as string,
+    };
+
+    try {
+      await DataService.saveSettings(newSettings);
+      setSettings(newSettings);
+      alert("Sozlamalar muvaffaqiyatli saqlandi!");
+    } catch (error) {
+      alert("Sozlamalarni saqlashda xatolik yuz berdi.");
+    }
   };
 
   const openModal = (item: any = null) => {
@@ -119,11 +219,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <button
-            onClick={() => setActiveTab('branches')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'branches' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            onClick={() => setActiveTab('items')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'items' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >
-            <Store size={20} />
-            Filiallar
+            <UtensilsCrossed size={20} />
+            Taomlar
           </button>
           <button
             onClick={() => setActiveTab('categories')}
@@ -133,11 +233,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             Kategoriyalar
           </button>
           <button
-            onClick={() => setActiveTab('items')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'items' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            onClick={() => setActiveTab('branches')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'branches' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >
-            <UtensilsCrossed size={20} />
-            Taomlar
+            <Store size={20} />
+            Filiallar
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -246,7 +346,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {items.map(item => {
-                    const categoryName = categories.find(c => c.id === item.categoryId)?.name || 'Unknown';
+                    const categoryName = categories.find(c => c.id === item.categoryId)?.name || 'Noma\'lum';
                     return (
                       <tr key={item.id} className={!item.isActive ? 'bg-gray-50 opacity-60' : ''}>
                         <td className="px-6 py-4">
@@ -327,7 +427,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 relative">
             <h2 className="text-xl font-bold mb-4">
-              {editItem ? 'Tahrirlash' : "Qo'shish"}
+              {editItem ? `Tahrirlash: ${activeTab.slice(0, -1)}` : `Yangi ${activeTab.slice(0, -1)} qo'shish`}
             </h2>
             <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800">✕</button>
             
