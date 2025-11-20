@@ -30,4 +30,5 @@ export interface AppSettings {
   primaryColor: string;
   headingColor: string;
   bodyTextColor: string;
+  adminPassword?: string; // Optional for security, might not always be sent to client
 }

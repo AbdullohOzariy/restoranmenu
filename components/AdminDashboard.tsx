@@ -13,14 +13,15 @@ import {
   LogOut,
   Eye,
   EyeOff,
-  GripVertical
+  GripVertical,
+  AlertCircle
 } from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type AdminTab = 'branches' | 'categories' | 'items' | 'settings';
+type AdminTab = 'items' | 'categories' | 'branches' | 'settings';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('items');
@@ -42,8 +43,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setIsLoading(true);
     const data = await DataService.refreshData();
     setBranches(data.branches);
-    setCategories(data.categories);
-    setItems(data.items);
+    setCategories(data.categories.sort((a, b) => a.sortOrder - b.sortOrder));
+    setItems(data.items.sort((a, b) => a.sortOrder - b.sortOrder));
     setSettings(data.settings);
     setIsLoading(false);
   };
@@ -132,6 +133,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       branchIds: branchIds,
     };
 
+    if (!itemData.categoryId) {
+        alert("Iltimos, kategoriyani tanlang.");
+        return;
+    }
+
     try {
       if (editItem) {
         await DataService.updateMenuItem(editItem.id, itemData);
@@ -194,7 +200,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const openModal = (item: any = null) => {
+  const openModal = (tab: AdminTab, item: any = null) => {
+    setActiveTab(tab);
     setEditItem(item);
     setIsModalOpen(true);
   };
@@ -266,7 +273,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-800">Filiallar Ro'yxati</h1>
-              <button onClick={() => openModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
+              <button onClick={() => openModal('branches')} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
                 <Plus size={20} /> Qo'shish
               </button>
             </div>
@@ -276,7 +283,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="text-lg font-semibold">{branch.name}</h3>
                     <div className="flex gap-2">
-                      <button onClick={() => openModal(branch)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit2 size={18} /></button>
+                      <button onClick={() => openModal('branches', branch)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit2 size={18} /></button>
                       <button onClick={() => handleDeleteBranch(branch.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={18} /></button>
                     </div>
                   </div>
@@ -293,7 +300,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-800">Kategoriyalar</h1>
-              <button onClick={() => openModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
+              <button onClick={() => openModal('categories')} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
                 <Plus size={20} /> Qo'shish
               </button>
             </div>
@@ -313,7 +320,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         {category.name}
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
-                        <button onClick={() => openModal(category)} className="text-blue-600 hover:underline">Tahrirlash</button>
+                        <button onClick={() => openModal('categories', category)} className="text-blue-600 hover:underline">Tahrirlash</button>
                         <button onClick={() => handleDeleteCategory(category.id)} className="text-red-600 hover:underline">O'chirish</button>
                       </td>
                     </tr>
@@ -329,9 +336,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-800">Taomlar</h1>
-              <button onClick={() => openModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
-                <Plus size={20} /> Qo'shish
-              </button>
+              <div className="flex items-center gap-4">
+                {categories.length === 0 && (
+                    <div className="flex items-center gap-2 text-yellow-600">
+                        <AlertCircle size={20} />
+                        <span>Avval kategoriya yarating!</span>
+                    </div>
+                )}
+                <button 
+                    onClick={() => openModal('items')} 
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={categories.length === 0}
+                >
+                    <Plus size={20} /> Qo'shish
+                </button>
+              </div>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <table className="w-full text-left">
@@ -365,7 +384,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           </button>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
-                          <button onClick={() => openModal(item)} className="text-blue-600 hover:underline">Tahrirlash</button>
+                          <button onClick={() => openModal('items', item)} className="text-blue-600 hover:underline">Tahrirlash</button>
                           <button onClick={() => handleDeleteItem(item.id)} className="text-red-600 hover:underline">O'chirish</button>
                         </td>
                       </tr>
@@ -427,7 +446,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 relative">
             <h2 className="text-xl font-bold mb-4">
-              {editItem ? `Tahrirlash: ${activeTab.slice(0, -1)}` : `Yangi ${activeTab.slice(0, -1)} qo'shish`}
+              {editItem ? `Tahrirlash` : `Yangi qo'shish`}
             </h2>
             <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800">✕</button>
             
