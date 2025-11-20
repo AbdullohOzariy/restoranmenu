@@ -19,20 +19,15 @@ export const ClientView: React.FC<ClientViewProps> = () => {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const [fetchedBranches, fetchedCategories, fetchedItems, fetchedSettings] = await Promise.all([
-        DataService.getBranches(),
-        DataService.getCategories(),
-        DataService.getItems(),
-        DataService.getSettings(),
-      ]);
+      const data = await DataService.refreshData();
 
-      const activeBranches = fetchedBranches.filter(b => b.isActive);
-      const sortedCategories = fetchedCategories.sort((a, b) => a.sortOrder - b.sortOrder);
+      const activeBranches = data.branches.filter(b => b.isActive);
+      const sortedCategories = data.categories.sort((a, b) => a.sortOrder - b.sortOrder);
 
       setBranches(activeBranches);
       setCategories(sortedCategories);
-      setItems(fetchedItems.filter(i => i.isActive));
-      setSettings(fetchedSettings);
+      setItems(data.items.filter(i => i.isActive));
+      setSettings(data.settings);
 
       if (activeBranches.length === 1) {
         handleBranchSelect(activeBranches[0], sortedCategories);
