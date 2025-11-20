@@ -2,6 +2,14 @@ import { Branch, Category, MenuItem, AppSettings } from '../types';
 
 const API_URL = '/api';
 
+const defaultSettings: AppSettings = {
+  brandName: 'Menyu',
+  logoUrl: '',
+  primaryColor: '#000000',
+  headingColor: '#1f2937',
+  bodyTextColor: '#4b5563',
+};
+
 const apiRequest = async (url: string, method: string, body?: any) => {
   try {
     const response = await fetch(url, {
@@ -26,10 +34,15 @@ export const DataService = {
     try {
       const response = await fetch(`${API_URL}/all-data`);
       if (!response.ok) throw new Error('Network response was not ok');
-      return await response.json();
+      const data = await response.json();
+      // Ensure settings are never null
+      if (!data.settings) {
+        data.settings = defaultSettings;
+      }
+      return data;
     } catch (error) {
       console.error("Failed to fetch data:", error);
-      return { branches: [], categories: [], items: [], settings: {} as AppSettings };
+      return { branches: [], categories: [], items: [], settings: defaultSettings };
     }
   },
 

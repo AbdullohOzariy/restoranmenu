@@ -107,7 +107,7 @@ app.get('/api/all-data', async (req, res) => {
     }));
 
     res.json({
-      settings: settingsRes.rows[0].value,
+      settings: settingsRes.rows[0] ? settingsRes.rows[0].value : {},
       branches: branchesRes.rows.map(b => ({...b, isActive: b.is_active})),
       categories: categoriesRes.rows.map(c => ({...c, sortOrder: c.sort_order, name: c.name})),
       items: itemsWithBranches,
