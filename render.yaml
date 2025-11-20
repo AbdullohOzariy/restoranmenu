@@ -25,6 +25,8 @@ services:
         fromDatabase:
           name: restoran-menyu-tizimi-db
           property: connectionString
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
     healthCheckPath: /
     autoDeploy: true
 
