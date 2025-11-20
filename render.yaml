@@ -9,12 +9,14 @@ services:
       npm install
       npm run build
       echo "📦 Verifying dist folder..."
-      ls -la dist/
+      ls -laR dist/
       echo "📋 Copying dist to server/dist..."
-      mkdir -p server/dist
-      cp -r dist/* server/dist/
-      echo "✅ Dist copied. Verifying..."
-      ls -la server/dist/
+      rm -rf server/dist
+      cp -r dist server/dist
+      echo "✅ Dist copied. Verifying server/dist contents..."
+      ls -laR server/dist/
+      echo "🔍 Checking for index.html..."
+      find server/dist -name "index.html" -type f
       cd server && npm install
     startCommand: cd server && node index.js
     envVars:
