@@ -144,7 +144,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const openModal = (tab: AdminTab, item: any = null) => {
     setActiveTab(tab);
     setEditItem(item);
-    if (tab === 'items' && item && item.variants) {
+    if (tab === 'items' && item && item.variants && item.variants.length > 0) {
       setItemVariants(item.variants);
     } else if (tab === 'items') {
       setItemVariants([{ name: 'Standard', price: 0 }]);
@@ -222,7 +222,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   {items.map(item => (<tr key={item.id} className={!item.isActive ? 'bg-gray-50 opacity-60' : ''}>
                     <td className="px-6 py-4"><img src={item.imageUrl} alt={item.name} className="w-12 h-12 rounded-lg object-cover bg-gray-200" /></td>
                     <td className="px-6 py-4"><p className="font-medium">{item.name}</p><span className="text-xs px-2 py-1 bg-gray-100 rounded">{categories.find(c => c.id === item.categoryId)?.name || 'Noma\'lum'}</span></td>
-                    <td className="px-6 py-4 text-sm">{item.variants.map(v => `${v.name}: ${v.price.toLocaleString()}`).join(', ')}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {item.variants && item.variants.length > 0
+                        ? item.variants.map(v => `${v.name}: ${v.price.toLocaleString()}`).join(', ')
+                        : "Narxi yo'q"}
+                    </td>
                     <td className="px-6 py-4 text-center"><button onClick={() => handleToggleItemStatus(item.id)} className="text-gray-500 hover:text-blue-600">{item.isActive ? <Eye size={20} /> : <EyeOff size={20} />}</button></td>
                     <td className="px-6 py-4 text-right space-x-2"><button onClick={() => openModal('items', item)} className="hover:underline text-blue-600">Tahrirlash</button><button onClick={() => handleDeleteItem(item.id)} className="hover:underline text-red-600">O'chirish</button></td>
                   </tr>))}
