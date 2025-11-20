@@ -5,7 +5,6 @@ services:
     plan: free
     buildCommand: |
       npm install --legacy-peer-deps
-      cd server && npm install && cd ..
       npm run build
     startCommand: npm start
     envVars:
@@ -13,6 +12,7 @@ services:
         fromDatabase:
           name: restoran-menyu-tizimi-db
           property: connectionString
+
 databases:
   - name: restoran-menyu-tizimi-db
     plan: free

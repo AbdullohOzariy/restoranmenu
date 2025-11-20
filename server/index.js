@@ -6,29 +6,22 @@ const initialData = require('./initialData');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware to parse JSON bodies
 app.use(express.json());
 
-// --- Database Migration & Initialization ---
 async function setupDatabase() {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
 
-    // --- Schema Creation (Define the FINAL schema) ---
+    // Step 1: Create tables with the final, correct schema.
     await client.query(`
       CREATE TABLE IF NOT EXISTS settings ( key TEXT PRIMARY KEY, value JSONB );
       CREATE TABLE IF NOT EXISTS branches ( id TEXT PRIMARY KEY, name TEXT NOT NULL, address TEXT, phone TEXT, is_active BOOLEAN DEFAULT true );
       CREATE TABLE IF NOT EXISTS categories ( id TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER );
       CREATE TABLE IF NOT EXISTS menu_items (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        image_url TEXT,
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, image_url TEXT,
         category_id TEXT REFERENCES categories(id) ON DELETE SET NULL,
-        is_active BOOLEAN DEFAULT true,
-        sort_order INTEGER,
-        variants JSONB
+        is_active BOOLEAN DEFAULT true, sort_order INTEGER, variants JSONB
       );
       CREATE TABLE IF NOT EXISTS menu_item_branches (
         item_id TEXT REFERENCES menu_items(id) ON DELETE CASCADE,
@@ -37,63 +30,51 @@ async function setupDatabase() {
       );
     `);
 
-    // --- Migration Logic ---
-    const priceColumnCheck = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='menu_items' AND column_name='price'`);
-
+    // Step 2: Robust migration logic. Only runs if the old 'price' column exists.
+    const priceColumnCheck = await client.query(`SELECT 1 FROM information_schema.columns WHERE table_name='menu_items' AND column_name='price'`);
     if (priceColumnCheck.rows.length > 0) {
       console.log("Old 'price' column found. Starting robust data migration...");
-      
-      const variantsColumnCheck = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_name='menu_items' AND column_name='variants'`);
-      if (variantsColumnCheck.rows.length === 0) {
-        console.log("'variants' column not found. Adding it now...");
-        await client.query('ALTER TABLE menu_items ADD COLUMN variants JSONB');
-      }
-
-      console.log("Migrating data from 'price' to 'variants' for items that haven't been migrated yet...");
-      const itemsToMigrate = await client.query('SELECT id, price FROM menu_items WHERE price IS NOT NULL AND (variants IS NULL OR variants::text = \'null\')');
+      await client.query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS variants JSONB`);
+      const itemsToMigrate = await client.query(`SELECT id, price FROM menu_items WHERE price IS NOT NULL AND (variants IS NULL OR variants::text = 'null')`);
       for (const item of itemsToMigrate.rows) {
         const standardVariant = [{ name: 'Standard', price: parseFloat(item.price) }];
-        await client.query('UPDATE menu_items SET variants = $1 WHERE id = $2', [JSON.stringify(standardVariant), item.id]);
+        await client.query(`UPDATE menu_items SET variants = $1 WHERE id = $2`, [JSON.stringify(standardVariant), item.id]);
       }
-
-      console.log("Dropping old 'price' column...");
-      await client.query('ALTER TABLE menu_items DROP COLUMN price');
-      
-      console.log("Data migration completed successfully.");
+      await client.query(`ALTER TABLE menu_items DROP COLUMN price`);
+      console.log("Data migration completed successfully. 'price' column dropped.");
     }
 
-    // --- Initial Data Population (only if DB is truly empty) ---
-    const settingsResult = await client.query('SELECT * FROM settings WHERE key = $1', ['app_settings']);
+    // Step 3: Populate with initial data only if the database is completely empty.
+    const settingsResult = await client.query('SELECT 1 FROM settings');
     if (settingsResult.rows.length === 0) {
-        console.log('Database is empty. Populating with initial data...');
-        await client.query('INSERT INTO settings (key, value) VALUES ($1, $2)', ['app_settings', JSON.stringify(initialData.settings)]);
-        for (const branch of initialData.branches) {
-            await client.query('INSERT INTO branches (id, name, address, phone, is_active) VALUES ($1, $2, $3, $4, $5)', [branch.id, branch.name, branch.address, branch.phone, branch.isActive]);
+      console.log('Database is empty. Populating with initial data...');
+      await client.query('INSERT INTO settings (key, value) VALUES ($1, $2)', ['app_settings', JSON.stringify(initialData.settings)]);
+      for (const branch of initialData.branches) {
+        await client.query('INSERT INTO branches (id, name, address, phone, is_active) VALUES ($1, $2, $3, $4, $5)', [branch.id, branch.name, branch.address, branch.phone, branch.isActive]);
+      }
+      for (const category of initialData.categories) {
+        await client.query('INSERT INTO categories (id, name, sort_order) VALUES ($1, $2, $3)', [category.id, category.name, category.sortOrder]);
+      }
+      for (const item of initialData.items) {
+        await client.query('INSERT INTO menu_items (id, name, description, image_url, category_id, is_active, sort_order, variants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [item.id, item.name, item.description, item.imageUrl, item.categoryId, item.isActive, item.sortOrder, JSON.stringify(item.variants)]);
+        for (const branchId of item.branchIds) {
+          await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [item.id, branchId]);
         }
-        for (const category of initialData.categories) {
-            await client.query('INSERT INTO categories (id, name, sort_order) VALUES ($1, $2, $3)', [category.id, category.name, category.sortOrder]);
-        }
-        for (const item of initialData.items) {
-            await client.query('INSERT INTO menu_items (id, name, description, image_url, category_id, is_active, sort_order, variants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [item.id, item.name, item.description, item.imageUrl, item.categoryId, item.isActive, item.sortOrder, JSON.stringify(item.variants)]);
-            for (const branchId of item.branchIds) {
-                await client.query('INSERT INTO menu_item_branches (item_id, branch_id) VALUES ($1, $2)', [item.id, branchId]);
-            }
-        }
-        console.log('Database populated successfully.');
+      }
+      console.log('Database populated successfully.');
     }
 
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Error setting up or migrating database:', err);
+    console.error('CRITICAL ERROR during database setup:', err);
     process.exit(1);
   } finally {
     client.release();
   }
 }
 
-
-// --- API Endpoints ---
+// API to get all data with guaranteed data shape
 app.get('/api/all-data', async (req, res) => {
   try {
     const settingsRes = await db.query('SELECT value FROM settings WHERE key = $1', ['app_settings']);
@@ -103,27 +84,19 @@ app.get('/api/all-data', async (req, res) => {
     const itemBranchesRes = await db.query('SELECT * FROM menu_item_branches');
 
     const itemsWithBranches = itemsRes.rows.map(item => {
-      // **ULTRA-SAFE DATA SANITIZATION**
       let cleanVariants = [];
       if (Array.isArray(item.variants)) {
         cleanVariants = item.variants.map(v => ({
           name: (v && v.name) ? String(v.name) : 'Nomsiz',
           price: (v && typeof v.price === 'number') ? v.price : 0,
-        })).filter(v => v !== null);
+        })).filter(Boolean);
       }
 
       return {
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        variants: cleanVariants, // Use the sanitized variants
-        imageUrl: item.image_url,
-        categoryId: item.category_id,
-        sortOrder: item.sort_order,
-        isActive: item.is_active,
-        branchIds: itemBranchesRes.rows
-          .filter(ib => ib.item_id === item.id)
-          .map(ib => ib.branch_id),
+        id: item.id, name: item.name, description: item.description,
+        variants: cleanVariants, imageUrl: item.image_url, categoryId: item.category_id,
+        sortOrder: item.sort_order, isActive: item.is_active,
+        branchIds: itemBranchesRes.rows.filter(ib => ib.item_id === item.id).map(ib => ib.branch_id),
       };
     });
 
@@ -139,7 +112,8 @@ app.get('/api/all-data', async (req, res) => {
   }
 });
 
-// --- Settings, Categories, Branches (omitted for brevity, no changes) ---
+// All other API endpoints (PUT, POST, DELETE) remain the same...
+// ... (omitted for brevity)
 app.put('/api/settings', async (req, res) => {
     const newSettings = req.body;
     try {
@@ -242,10 +216,12 @@ app.delete('/api/menu-items/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Failed to delete menu item' }); }
 });
 
+// --- Static Files & Catch-all ---
 const buildPath = path.resolve(__dirname, '..', 'dist');
 app.use(express.static(buildPath));
 app.get('*', (req, res) => { res.sendFile(path.join(buildPath, 'index.html')); });
 
+// --- Start Server ---
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
   setupDatabase();
