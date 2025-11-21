@@ -3,7 +3,7 @@ import { Branch, Category, MenuItem, AppSettings } from '../types';
 import { MapPin, Phone, ChevronRight } from 'lucide-react';
 
 interface ClientViewProps {
-  settings: AppSettings | null; // Allow settings to be null
+  settings: AppSettings | null;
   branches: Branch[];
   categories: Category[];
   items: MenuItem[];
@@ -43,10 +43,22 @@ export const ClientView: React.FC<ClientViewProps> = ({ settings, branches: allB
   };
 
   const getDisplayPrice = (item: MenuItem) => {
-    if (!item.variants || item.variants.length === 0) return 'Narxi belgilanmagan';
-    const validPrices = item.variants.map(v => v.price).filter(p => typeof p === 'number');
-    if (validPrices.length === 0) return 'Narxi belgilanmagan';
-    if (validPrices.length === 1) return `${validPrices[0].toLocaleString()} so'm`;
+    if (!item || !Array.isArray(item.variants) || item.variants.length === 0) {
+      return 'Narxi belgilanmagan';
+    }
+
+    const validPrices = item.variants
+      .map(v => (v && typeof v.price === 'number' ? v.price : null))
+      .filter(p => p !== null) as number[];
+
+    if (validPrices.length === 0) {
+      return 'Narxi belgilanmagan';
+    }
+
+    if (validPrices.length === 1) {
+      return `${validPrices[0].toLocaleString()} so'm`;
+    }
+
     const minPrice = Math.min(...validPrices);
     return `dan ${minPrice.toLocaleString()} so'm`;
   };
@@ -58,7 +70,6 @@ export const ClientView: React.FC<ClientViewProps> = ({ settings, branches: allB
       .sort((a, b) => a.sort_order - b.sort_order);
   }, [activeItems, selectedBranch, activeCategory]);
 
-  // Loading state if settings are not yet available
   if (!settings) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
