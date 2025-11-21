@@ -48,8 +48,8 @@ export const ClientView: React.FC<ClientViewProps> = ({ settings, branches: allB
     }
 
     const validPrices = item.variants
-      .map(v => (v && typeof v.price === 'number' ? v.price : null))
-      .filter(p => p !== null) as number[];
+      .filter(v => v && typeof v.price === 'number' && isFinite(v.price))
+      .map(v => v.price as number);
 
     if (validPrices.length === 0) {
       return 'Narxi belgilanmagan';
