@@ -19,7 +19,7 @@ RUN npm ci --only=production
 COPY server/ ./
 
 # Copy frontend build
-COPY --from=frontend-build /app/dist ./dist
+COPY --from=frontend-build /app/server/dist ./dist
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
