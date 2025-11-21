@@ -22,12 +22,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialData, onD
   
   const [settings, setSettings] = useState<AppSettings | null>(initialData.settings);
 
-  // Sync state with props
   useEffect(() => {
     setSettings(initialData.settings);
   }, [initialData.settings]);
 
-  // Form States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<AdminTab | null>(null);
   const [editItem, setEditItem] = useState<any>(null);
@@ -125,7 +123,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialData, onD
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!settings) return; // Guard against null settings
+    if (!settings) return;
     const form = e.target as HTMLFormElement;
     const newSettings: AppSettings = {
       ...settings,
@@ -174,8 +172,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialData, onD
   };
 
   const formatVariantsForAdmin = (variants: MenuItemVariant[] | undefined) => {
-    if (!variants || variants.length === 0) return "Narxi yo'q";
-    return variants.map(v => `${v.name}: ${v.price.toLocaleString()}`).join('; ');
+    if (!variants || !Array.isArray(variants) || variants.length === 0) {
+      return "Narxi yo'q";
+    }
+    return variants
+      .map(v => {
+        if (!v || typeof v.price !== 'number') {
+          return `${v?.name || 'Nomsiz'}: N/A`;
+        }
+        return `${v.name}: ${v.price.toLocaleString()}`;
+      })
+      .join('; ');
   };
 
   if (!settings) {
