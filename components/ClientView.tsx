@@ -15,7 +15,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ settings, branches: allB
   const [activeCategory, setActiveCategory] = useState<string>('');
 
   const activeBranches = useMemo(() => allBranches.filter(b => b.isActive), [allBranches]);
-  const sortedCategories = useMemo(() => [...allCategories].sort((a, b) => a.sort_order - b.sort_order), [allCategories]);
+  const sortedCategories = useMemo(() => [...allCategories].sort((a, b) => a.sortOrder - b.sortOrder), [allCategories]);
   const activeItems = useMemo(() => allItems.filter(i => i.isActive), [allItems]);
 
   useEffect(() => {
@@ -46,19 +46,19 @@ export const ClientView: React.FC<ClientViewProps> = ({ settings, branches: allB
     if (!item || !Array.isArray(item.variants) || item.variants.length === 0) {
       return 'Narxi belgilanmagan';
     }
-
+  
     const validPrices = item.variants
-      .filter(v => v && typeof v.price === 'number' && isFinite(v.price))
-      .map(v => v.price as number);
-
+      .map(v => v?.price)
+      .filter(price => typeof price === 'number' && isFinite(price)) as number[];
+  
     if (validPrices.length === 0) {
       return 'Narxi belgilanmagan';
     }
-
+  
     if (validPrices.length === 1) {
       return `${validPrices[0].toLocaleString()} so'm`;
     }
-
+  
     const minPrice = Math.min(...validPrices);
     return `dan ${minPrice.toLocaleString()} so'm`;
   };
@@ -67,7 +67,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ settings, branches: allB
     if (!selectedBranch) return [];
     return activeItems
       .filter(item => item.branchIds.includes(selectedBranch.id) && item.categoryId === activeCategory)
-      .sort((a, b) => a.sort_order - b.sort_order);
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   }, [activeItems, selectedBranch, activeCategory]);
 
   if (!settings) {
